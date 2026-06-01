@@ -1,133 +1,75 @@
-# QuickSync4Linux
-It is annoying that companies always forget to implement their software for the most important operating system. This is a minimal implementation of the Gigaset QuickSync software for Linux.
+# readme.md
 
-The communication with the device is based on AT commands over a USB/Bluetooth serial port. For file transfer, the device is set into Obex mode.
+# QuickSync4LinuxGui
 
-## Hardware Setup
-Make sure your user is in the dialout group in order to access the serial port.
-```
+This repository is a fork of [schorschii/QuickSync4Linux](https://github.com/schorschii/QuickSync4Linux). It extends the original command-line utility with a modern, graphical user interface (GUI) implementation of the Gigaset QuickSync software for Linux.
+
+The communication with the device is based on AT commands over a USB/Bluetooth serial port. For file transfer, the device is set into Obex mode. The GUI acts as a seamless Dolphin-styled interface to manage your device, contacts, and files without touching the command line.
+
+## About this Fork
+
+This project is an unofficial graphical frontend expansion for [QuickSync4Linux](https://github.com/schorschii/QuickSync4Linux). It packages the core synchronization logic into a native Qt/QML-inspired interface using Python and PySide6, while preserving all the underlying features and stability of the original CLI application.
+
+## Prerequisites & Installation
+
+### 1\. Hardware Setup
+
+Make sure your user is in the `dialout` group in order to access the serial port.
+
+```bash
 sudo usermod -aG dialout <username>
 # logout and login again to apply group membership
 ```
 
+### 2\. Install Python Dependencies
+
+```
+pip install -r requirements.txt
+```
+
+### 3\. System Dependencies
+
+The application relies on standard Linux utilities for specific features:
+
+- `bluez` / `bluez-utils` (provides `bluetoothctl` for automatic Bluetooth device discovery)
+- `xdg-utils` (provides `xdg-open` to easily view system logs directly from the GUI)
+
 ## Usage
-First, find out the correct serial port device. After connecting, a serial port like `/dev/ttyACM0` (USB on Linux), `/dev/tty.usbmodem` (USB on macOS) or `/dev/rfcomm0` ([Bluetooth on Linux](https://gist.github.com/0/c73e2557d875446b9603)) should appear. `/dev/ttyACM0` is used by default. If your device differs, you can use the `--device` parameter for every command or create a config file `~/.config/quicksync4linux.ini`.
 
-<details>
-<summary>Example: ~/.config/quicksync4linux.ini</summary>
+To start the graphical interface, simply execute it from your terminal:
 
 ```
-[general]
-device = /dev/rfcomm0
-baud = 9600
-```
-</details>
-
-Then, you can use one of the following commands:
-```
-# read device metadata
-python3 -m QuickSync4Linux info
-python3 -m QuickSync4Linux obexinfo
-
-# read device contacts and print VCF to stdout (use --file to store it into a file instead)
-python3 -m QuickSync4Linux getcontacts
-
-# create new contacts on device from vcf file
-python3 -m QuickSync4Linux createcontacts --file mycontacts.vcf
-
-# overwrite a contact with given luid 517
-# luid = Local Unique IDentifier; can be found in `getcontacts` vcf output
-python3 -m QuickSync4Linux editcontact 517 --file mycontact.vcf
-
-# delete contact with luid 517 from device
-python3 -m QuickSync4Linux deletecontact 517
-
-# show files on device
-python3 -m QuickSync4Linux listfiles
-
-# download file "/Pictures/Gigaset.jpg" from device into local file "gigaset.jpg"
-python3 -m QuickSync4Linux download "/Pictures/Gigaset.jpg" --file gigaset.jpg
-
-# upload local file "cousin.jpg" into "/Clip Pictures/cousin.jpg" on device
-python3 -m QuickSync4Linux upload "/Clip Pictures/cousin.jpg" --file cousin.jpg
-
-# delete file "/Clip Pictures/cousin.jpg" on device
-python3 -m QuickSync4Linux delete "/Clip Pictures/cousin.jpg"
-
-# start a call
-python3 -m QuickSync4Linux dial 1234567890
+cd /Pfad_zu_QuickSync4LinuxGui/
+python3 -m QuickSync4LinuxGui
 ```
 
-For debug purposes and reporting issues, please start the script with the `-v` parameter and have a look at the serial communication.
+### GUI Features Overview
 
-## Formats
-### VCF Structure
-The Gigaset devices expect a VCF like the following example:
-```
-BEGIN:VCARD
-VERSION:2.1
-X-IRMC-LUID:769
-N:Last Name;First Name
-TEL;HOME:+49123456789
-TEL;CELL:+49456789123
-TEL;WORK:+49789123456
-BDAY:2020-01-01T09:00
-END:VCARD
-```
+- **Automatic Device Discovery:** Automatically scans and lists available serial ports (`/dev/ttyACM*`, `/dev/ttyUSB*`, `/dev/rfcomm*`) as well as paired Bluetooth devices.
+- **Device Information:** Displays manufacturer, model, firmware version, and contact counts at a single glance.
+- **Contact Manager:** A full visual contact editor to browse, add, edit, or delete handset contacts before synchronizing changes back to the device.
+- **File Manager:** A Dolphin-styled file browser supporting separate folders (Pictures, Sounds, etc.), file downloads, local uploads, and even an image preview panel for compatible formats.
+- **Persistent Settings:** Adjust timeout configurations and serial baud rates via dedicated configuration dialogs.
 
-And with special chars encoded as Quoted Printable:
-```
-BEGIN:VCARD
-VERSION:2.1
-X-IRMC-LUID:1099
-N;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:|\\=C2=A7\;;=C3=A4=C3=B6=C3=BC=
-=C3=9F
-TEL;HOME:+49123
-END:VCARD
-```
+_Note: For debugging and logging, the GUI automatically captures terminal logs and saves them to_ `~/.config/QuickSync4LinuxGui/`_. You can view or open them directly via the "Log öffnen" button in the sidebar._
 
-### Picture Format
-Important: your image size should match the screen/clip size which can be found by the `info` command. The device will crash and reboot otherwise when trying to open a non-conform file.
+## Screenshots:
 
-When using GIMP for image creation, use the following values in the JPG export dialog:
-- set "Quality" to 80 or below
-- **disable** "Save Exif data"
-- **disable** "Save XMP data"
-- **disable** "Save thumbnail"
-- **disable** "Save color profile"
-- **disable** "Progressive" in the "Advanced Options"
+Hauptfenster
 
-### Sound Format
-Sounds must use the g722 codec and must be uploaded with the `.L22` file extension. Own sounds can easily be converted into g722 using ffmpeg:
-```
-ffmpeg -i "Another brick in the wall part2.wav" -ar 16000 -acodec g722 "AnotherBrick2.g722"
+![alt text](<images/QuickSync4LinuxGui - Hauptfenster.png>)
 
-python3 -m QuickSync4Linux upload "/Sounds/AnotherBrick2.L22" --file "AnotherBrick2.g722"
-```
+Kontaktverwaltung:
 
-Please cut your audio track into a reasonable length before converting and uploading it.
+![alt text](<images/QuickSync4LinuxGui - Kontakteverwaltung.png>)
 
-## Dial When Clicking `tel:` Links
-To start a call with you Gigaset when clicking `tel:` links, you need to register QuickSync4Linux as `tel:` handler in your operating system. On Linux, you do this by copying `quicksync4linux.desktop` into `/usr/share/applications` and then execute `update-desktop-database`.
+Dateiverwatung:
 
-`quicksync` must be in you `PATH` variable. You can simply create a symlink for this: `sudo ln -s /path/to/your/quicksync.py /usr/local/bin/quicksync`.
+![alt text](<images/QuickSync4LinuxGui - Dateiverwaltung.png>)
 
-## Tested Devices
-Please let me know if you tested this script with another device (regardless of whether it was successful or not).
+Einstellungen:
 
-- Gigaset S68H (Bluetooth working, no USB port)
-- Gigaset CL660HX (USB working, no Bluetooth)
-- Gigaset SL450HX (USB + Bluetooth working)
-- Gigaset S700H PRO (USB + Bluetooth working)
-- Gigaset SL400H (USB working, Bluetooth is impossible to pair in GNOME because the PIN is not visible on the desktop at the moment you need to enter it in the handset)
-- Gigaset SL610 PRO (USB working but often reports serial timeouts. Bluetooth not tested)
-- Gigaset S650H PRO (USB + Bluetooth working)
+![
+](<images/QuickSync4LinuxGui - Einstellung Timeouts.png>)
 
-## Common Errors
-- `Device reported an AT command error`
-  Make sure you are on the home screen on the device. Do not open the contacts, menu or Media Pool when transferring data.
-
-## Support
-If you like this project please consider making a donation using the sponsor button on [GitHub](https://github.com/schorschii/QuickSync4Linux) to support further development. If your financial resources do not allow this, you can at least leave a star for the Github repo.
-
-Furthermore, you can hire me for commercial support or adjustments and support for new devices. Please [contact me](https://georg-sieber.de/?page=impressum) if you are interested.
+![alt text](<images/QuickSync4LinuxGui - Einstellung Baudrate.png>)

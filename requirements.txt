@@ -1,1 +1,3 @@
-pyserial
+# Python dependencies for QuickSync4LinuxGui
+PySide6>=6.0.0
+pyserial>=3.5

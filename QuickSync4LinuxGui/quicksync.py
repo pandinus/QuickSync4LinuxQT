@@ -21,12 +21,12 @@ def main():
     # read config
     config = {}
     configParser = configparser.ConfigParser()
-    configParser.read(str(Path.home())+'/.config/quicksync4linuxQT.ini')
+    configParser.read(str(Path.home())+'/.config/quicksync4linuxgui.ini')
     if(configParser.has_section('general')): config = dict(configParser.items('general'))
 
     # parse arguments
     parser = argparse.ArgumentParser(
-        prog='QuickSync4LinuxQT',
+        prog='QuickSync4LinuxGui',
         description='Communicate with Gigaset devices',
         epilog=f'Version {__version__}, (c) Georg Sieber 2023-2024. If you like this program please consider making a donation using the sponsor button on GitHub (https://github.com/schorschii/QuickSync4Linux) to support the development. It depends on users like you if this software gets further updates.'
     )
