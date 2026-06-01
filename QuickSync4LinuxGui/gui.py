@@ -842,6 +842,8 @@ class FileManagerWindow(QDialog):
             try:
                 cmd = self.parent_win.build_cmd('listfiles')
                 log = self.parent_win._signals
+                log.clear_output.emit()
+                log.append_text.emit('clear')
                 log.append_text.emit('Lade Dateiliste …')
                 fm_sig.set_status.emit('Lade Dateiliste … (CLI läuft)')
 
