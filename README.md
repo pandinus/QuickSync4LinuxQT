@@ -71,4 +71,4 @@ Einstellungen:
 
 ![alt text](<Sreenshots/QuickSync4LinuxGui - Einstellung Timeouts.png>)
 
-![alt text](<Screenshots/QuickSync4LinuxGui - Einstellung Baudrate.png>)
+![alt text](<Sreenshots/QuickSync4LinuxGui - Einstellung Baudrate.png>)
