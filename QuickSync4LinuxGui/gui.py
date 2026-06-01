@@ -27,13 +27,28 @@ OBEX_RECOVERY_DELAY = 1.5
 DEFAULT_DEVICE = '/dev/ttyACM0'
 DEFAULT_BAUD = '9600'
 import datetime as _dt
-def _make_log_path():
-    ts = _dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    log_dir = os.path.expanduser('~/.config/QuickSync4LinuxGui')
-    os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, f'QuickSync4LinuxGui_{ts}.log')
+import logging
+from logging.handlers import RotatingFileHandler
 
-DEFAULT_LOG_FILE = _make_log_path()
+_LOG_DIR = os.path.expanduser('~/.config/QuickSync4LinuxGui')
+DEFAULT_LOG_FILE = os.path.join(_LOG_DIR, 'QuickSync4LinuxGui.log')
+
+def _setup_rotating_logger():
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    handler = RotatingFileHandler(
+        DEFAULT_LOG_FILE,
+        maxBytes=1 * 1024 * 1024,  # 1 MB
+        backupCount=3,
+        encoding='utf-8',
+    )
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s',
+                                           datefmt='%d.%m.%Y %H:%M:%S'))
+    logger = logging.getLogger('QuickSync4LinuxGui')
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    return logger
+
+_logger = _setup_rotating_logger()
 BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}(@\d+)?$')
 CHECK_TIMEOUT = 60
 DISCOVER_TIMEOUT = 10
@@ -120,7 +135,6 @@ class QuickSyncGUI(QMainWindow):
         self._signals.action_finished.connect(self._parse_and_fill_ui)
         self._signals.show_info.connect(self._show_info_window)
         self._log_file: str | None = None
-        self._log_file_lock = threading.Lock()
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -355,28 +369,13 @@ class QuickSyncGUI(QMainWindow):
         self._log_raw_output(text)
 
     def _log_raw_output(self, text: str):
-        if not self._log_file:
-            return
-        try:
-            with self._log_file_lock:
-                with open(self._log_file, 'a', encoding='utf-8') as f:
-                    f.write(text if text.endswith('\n') else text + '\n')
-        except OSError:
-            pass
+        for line in text.splitlines():
+            if line.strip():
+                _logger.info(line)
 
     def set_log_file(self, path: str | None):
         self._log_file = path
-        if not path:
-            self._append_output('Log-Datei deaktiviert')
-            return
-        try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'a', encoding='utf-8'):
-                pass
-            self._append_output(f'Log-Datei gesetzt: {path}')
-        except OSError as e:
-            self._append_output(f'✗ Log-Datei konnte nicht geöffnet werden: {e}')
-            self._log_file = None
+        self._append_output(f'Log-Datei: {DEFAULT_LOG_FILE} (max. 1 MB, 3 Backups)')
 
     def _update_status_bar(self, text: str, colour: str):
         self._status_dot.setStyleSheet(f'color: {colour};')
