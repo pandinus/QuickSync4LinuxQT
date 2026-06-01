@@ -69,6 +69,6 @@ Dateiverwatung:
 
 Einstellungen:
 
-![](<Screenshots/QuickSync4LinuxGui - Einstellung Timeouts.png>)
+![alt text](<Screenshots/QuickSync4LinuxGui - Einstellung Timeouts.png>)
 
 ![alt text](<Screenshots/QuickSync4LinuxGui - Einstellung Baudrate.png>)
