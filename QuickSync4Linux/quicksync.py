@@ -13,6 +13,7 @@ import sys
 
 from . import at
 from . import obex
+from . import btserial
 from .__init__ import __version__
 
 
@@ -20,29 +21,37 @@ def main():
     # read config
     config = {}
     configParser = configparser.ConfigParser()
-    configParser.read(str(Path.home())+'/.config/quicksync4linux.ini')
+    configParser.read(str(Path.home())+'/.config/quicksync4linuxQT.ini')
     if(configParser.has_section('general')): config = dict(configParser.items('general'))
 
     # parse arguments
     parser = argparse.ArgumentParser(
-        prog='QuickSync4Linux',
+        prog='QuickSync4LinuxQT',
         description='Communicate with Gigaset devices',
         epilog=f'Version {__version__}, (c) Georg Sieber 2023-2024. If you like this program please consider making a donation using the sponsor button on GitHub (https://github.com/schorschii/QuickSync4Linux) to support the development. It depends on users like you if this software gets further updates.'
     )
     parser.add_argument('action', help='one of: info, obexinfo, dial, getcontacts, createcontact, editcontact, deletecontact, listfiles, upload, download, delete')
     parser.add_argument('options', nargs='?', help='e.g. a phone number for the "dial" action, a luid for contact operations or a file name on device for file actions')
-    parser.add_argument('-d', '--device', default=config.get('device', '/dev/ttyACM0'), help='serial port device')
+    parser.add_argument('-d', '--device', default=config.get('device', '/dev/ttyACM0'), help='serial port device or Bluetooth MAC (optionally with @channel, default channel 1)')
     parser.add_argument('-b', '--baud', default=config.get('baud', 9600))
     parser.add_argument('-f', '--file', default='-', help='file to read from or write into, stdout/stdin default')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='print complete AT/Obex serial communication')
     args = parser.parse_args()
 
-    # open serial port
-    ser = serial.Serial(
-        args.device,
-        args.baud,
-        write_timeout=at.Delay.TimeoutWrite
-    )
+    # open serial port (TTY) or Bluetooth RFCOMM socket
+    try:
+        if(btserial.isBluetoothAddress(args.device)):
+            mac, channel = btserial.parseBluetoothAddress(args.device)
+            ser = btserial.BluetoothSerial(mac, channel, write_timeout=at.Delay.TimeoutWrite)
+        else:
+            ser = serial.Serial(
+                args.device,
+                args.baud,
+                write_timeout=at.Delay.TimeoutWrite
+            )
+    except (OSError, serial.SerialException) as e:
+        print(f'✗ Verbindung zu {args.device} fehlgeschlagen: {e}', file=sys.stderr)
+        sys.exit(1)
     if(args.verbose): print('Connected to:', ser.name)
 
     def readVcfFile(path):

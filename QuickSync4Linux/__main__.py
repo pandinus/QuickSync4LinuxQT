@@ -1,4 +1,10 @@
+import sys
+
+from . import gui
 from . import quicksync
 
 if __name__ == '__main__':
-	quicksync.main()
+    if len(sys.argv) == 1 or (len(sys.argv) > 1 and sys.argv[1] in ('gui', '--gui', '-g')):
+        gui.run()
+    else:
+        quicksync.main()
