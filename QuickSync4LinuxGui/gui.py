@@ -29,16 +29,16 @@ DEFAULT_BAUD = '9600'
 import datetime as _dt
 def _make_log_path():
     ts = _dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    log_dir = os.path.expanduser('~/.config/QuickSync4LinuxQT')
+    log_dir = os.path.expanduser('~/.config/QuickSync4LinuxGui')
     os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, f'QuickSync4LinuxQT_{ts}.log')
+    return os.path.join(log_dir, f'QuickSync4LinuxGui_{ts}.log')
 
 DEFAULT_LOG_FILE = _make_log_path()
 BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}(@\d+)?$')
 CHECK_TIMEOUT = 60
 DISCOVER_TIMEOUT = 10
 CLI_DEFAULT_TIMEOUT = 300
-DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/QuickSync4LinuxQT/settings.json')
+DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/QuickSync4LinuxGui/settings.json')
 
 
 def _load_settings_from_disk(path=DEFAULT_CONFIG_FILE):
@@ -108,7 +108,7 @@ class _WorkerSignals(QObject):
 class QuickSyncGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('QuickSync4LinuxQT GUI')
+        self.setWindowTitle('QuickSync4LinuxGui')
         self.resize(720, 560)
 
         self._device_map: dict[str, str] = {}
@@ -329,7 +329,7 @@ class QuickSyncGUI(QMainWindow):
         return text or self.current_device()
 
     def build_cmd(self, action, options=None, file=None):
-        cmd = ['python3', '-m', 'QuickSync4LinuxQT', action]
+        cmd = ['python3', '-m', 'QuickSync4LinuxGui', action]
         if options:
             cmd.append(options)
         dev = self.current_device()
