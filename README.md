@@ -57,18 +57,18 @@ _Note: For debugging and logging, the GUI automatically captures terminal logs a
 
 Hauptfenster
 
-![alt text](<Screenshots/QuickSync4LinuxGui - Hauptfenster.png>)
+![alt text](<Sreenshots/QuickSync4LinuxGui - Hauptfenster.png>)
 
 Kontaktverwaltung:
 
-![alt text](<Screenshots/QuickSync4LinuxGui - Kontakteverwaltung.png>)
+![alt text](<Sreenshots/QuickSync4LinuxGui - Kontakteverwaltung.png>)
 
-Dateiverwatung:
+Dateiverwaltung:
 
-![alt text](<Screenshots/QuickSync4LinuxGui - Dateiverwaltung.png>)
+![alt text](<Sreenshots/QuickSync4LinuxGui - Dateiverwaltung.png>)
 
 Einstellungen:
 
-![alt text](<Screenshots/QuickSync4LinuxGui - Einstellung Timeouts.png>)
+![alt text](<Sreenshots/QuickSync4LinuxGui - Einstellung Timeouts.png>)
 
 ![alt text](<Screenshots/QuickSync4LinuxGui - Einstellung Baudrate.png>)
