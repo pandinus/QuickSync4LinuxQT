@@ -9,6 +9,7 @@ import tempfile
 import threading
 import time
 import json
+import datetime as _dt
 
 from PySide6.QtCore import Qt, Signal, QObject, QTimer
 from PySide6.QtWidgets import (
@@ -16,7 +17,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit, QFrame,
     QDialog, QDialogButtonBox, QMessageBox, QFileDialog,
     QTabWidget, QFormLayout, QToolBar, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSizePolicy, QStatusBar, QAbstractItemView,
+    QHeaderView, QSizePolicy, QStatusBar, QAbstractItemView, QStyle
 )
 from PySide6.QtGui import QColor, QFont, QPixmap
 
@@ -26,29 +27,14 @@ from . import btserial
 OBEX_RECOVERY_DELAY = 1.5
 DEFAULT_DEVICE = '/dev/ttyACM0'
 DEFAULT_BAUD = '9600'
-import datetime as _dt
-import logging
-from logging.handlers import RotatingFileHandler
 
-_LOG_DIR = os.path.expanduser('~/.config/QuickSync4LinuxGui')
-DEFAULT_LOG_FILE = os.path.join(_LOG_DIR, 'QuickSync4LinuxGui.log')
+def _make_log_path():
+    ts = _dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    log_dir = os.path.expanduser('~/.config/QuickSync4LinuxGui')
+    os.makedirs(log_dir, exist_ok=True)
+    return os.path.join(log_dir, f'QuickSync4LinuxGui_{ts}.log')
 
-def _setup_rotating_logger():
-    os.makedirs(_LOG_DIR, exist_ok=True)
-    handler = RotatingFileHandler(
-        DEFAULT_LOG_FILE,
-        maxBytes=1 * 1024 * 1024,  # 1 MB
-        backupCount=3,
-        encoding='utf-8',
-    )
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s',
-                                           datefmt='%d.%m.%Y %H:%M:%S'))
-    logger = logging.getLogger('QuickSync4LinuxGui')
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
-    return logger
-
-_logger = _setup_rotating_logger()
+DEFAULT_LOG_FILE = _make_log_path()
 BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}(@\d+)?$')
 CHECK_TIMEOUT = 60
 DISCOVER_TIMEOUT = 10
@@ -135,6 +121,7 @@ class QuickSyncGUI(QMainWindow):
         self._signals.action_finished.connect(self._parse_and_fill_ui)
         self._signals.show_info.connect(self._show_info_window)
         self._log_file: str | None = None
+        self._log_file_lock = threading.Lock()
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -153,7 +140,6 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.setSpacing(1)
 
         style = self.style()
-        from PySide6.QtWidgets import QStyle
 
         def sb_group(text):
             lbl = QLabel(text)
@@ -178,7 +164,6 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.addWidget(sb_btn('Trennen',     QStyle.SP_DialogCancelButton,    self.disconnect_device, danger=True))
         sidebar_layout.addWidget(sb_btn('Info',        QStyle.SP_MessageBoxInformation, lambda: self.run_action('info')))
         sidebar_layout.addWidget(sb_btn('Obex Info',   QStyle.SP_MessageBoxInformation, lambda: self.run_action('obexinfo')))
-        
         
         sb_group('Kontakte')
         sidebar_layout.addWidget(sb_btn('Verwalten',   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
@@ -223,12 +208,10 @@ class QuickSyncGUI(QMainWindow):
         btn_refresh.clicked.connect(self.refresh_devices_and_check)
         dev_row.addWidget(btn_refresh)
 
-        # Baudrate wird in den Einstellungen konfiguriert
         self.baud = QLineEdit(DEFAULT_BAUD)
         self.baud.setVisible(False)
         right_col.addWidget(dev_row_widget)
 
-        # Geräteinfo-Formular
         form_layout = QFormLayout()
         form_layout.setSpacing(6)
 
@@ -248,13 +231,11 @@ class QuickSyncGUI(QMainWindow):
         form_layout.addRow("Anzahl Kontakte:", self.ui_kontakt_anzahl)
         right_col.addLayout(form_layout)
 
-        # Trennlinie
         line = QFrame()
         line.setFrameShape(QFrame.HLine)
         line.setFrameShadow(QFrame.Sunken)
         right_col.addWidget(line)
 
-        # Konsole / Log unterhalb
         self.output = QTextEdit()
         self.output.setReadOnly(True)
         self.output.setFont(QFont('Monospace', 9))
@@ -297,8 +278,6 @@ class QuickSyncGUI(QMainWindow):
         mac = find_val(r'(?:MAC-Adresse|MAC)\s*:\s*(.*)', text)
         firmware = find_val(r'(?:Firmware-Version|Firmware)\s*:\s*([0-9\.]+)', text)
         seriennummer = find_val(r'(?:Seriennummer|Serial(?:\s*\(IPUI\))?)\s*:\s*(.*)', text)
-        
-        # Falls das CLI beim "info" oder "getcontacts" Befehl Zahlen ausgibt
         anzahl = find_val(r'(?:Received|Found|Total)\s*([0-9]+)\s*(?:contacts|Kontakte)', text)
 
         if hersteller: self.ui_hersteller.setText(hersteller)
@@ -369,13 +348,28 @@ class QuickSyncGUI(QMainWindow):
         self._log_raw_output(text)
 
     def _log_raw_output(self, text: str):
-        for line in text.splitlines():
-            if line.strip():
-                _logger.info(line)
+        if not self._log_file:
+            return
+        try:
+            with self._log_file_lock:
+                with open(self._log_file, 'a', encoding='utf-8') as f:
+                    f.write(text if text.endswith('\n') else text + '\n')
+        except OSError:
+            pass
 
     def set_log_file(self, path: str | None):
         self._log_file = path
-        self._append_output(f'Log-Datei: {DEFAULT_LOG_FILE} (max. 1 MB, 3 Backups)')
+        if not path:
+            self._append_output('Log-Datei deaktiviert')
+            return
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'a', encoding='utf-8'):
+                pass
+            self._append_output(f'Log-Datei gesetzt: {path}')
+        except OSError as e:
+            self._append_output(f'✗ Log-Datei konnte nicht geöffnet werden: {e}')
+            self._log_file = None
 
     def _update_status_bar(self, text: str, colour: str):
         self._status_dot.setStyleSheet(f'color: {colour};')
@@ -471,7 +465,7 @@ class QuickSyncGUI(QMainWindow):
         dlg.setWindowTitle('Einstellungen')
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
-        from PySide6.QtWidgets import QSpinBox, QComboBox as _CB
+        from PySide6.QtWidgets import QSpinBox
         chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(CHECK_TIMEOUT); form.addRow('Verbindungs-Timeout (s):', chk)
         dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
         cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
@@ -489,7 +483,7 @@ class QuickSyncGUI(QMainWindow):
         dlg.setWindowTitle('Einstellungen')
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
-        from PySide6.QtWidgets import QSpinBox, QComboBox as _CB
+        from PySide6.QtWidgets import QComboBox as _CB
         baud_combo = _CB()
         baud_combo.setEditable(True)
         for b in ['1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']:
@@ -503,7 +497,6 @@ class QuickSyncGUI(QMainWindow):
             globals()['DEFAULT_BAUD'] = baud_combo.currentText()
             self.baud.setText(baud_combo.currentText())
             _save_settings_to_disk()
-    
 
     def open_file_manager(self):
         if not self.current_device():
@@ -531,7 +524,6 @@ class QuickSyncGUI(QMainWindow):
         self._contacts_win.finished.connect(lambda: setattr(self, '_contacts_win', None))
 
     def _interpret_connection_error(self, text: str) -> str:
-        """Gibt eine benutzerfreundliche Fehlermeldung für bekannte Verbindungsfehler zurück."""
         t = text.lower()
         if 'host is down' in t or 'errno 112' in t:
             return '✗ Gerät nicht erreichbar — Bitte Telefon entsperren und Bildschirm einschalten.'
@@ -592,11 +584,9 @@ class QuickSyncGUI(QMainWindow):
                         sig.append_text.emit(f'✓ {status_text}')
                         self._log_raw_output(proc_info.stdout)
                         sig.action_finished.emit('info', proc_info.stdout)
-                        # Kontaktanzahl im Hintergrund abrufen
                         try:
-                            import tempfile, os as _os
                             fd, vcf_path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_count_')
-                            _os.close(fd)
+                            os.close(fd)
                             cmd_contacts = self.build_cmd('getcontacts', file=vcf_path)
                             proc_contacts = subprocess.run(cmd_contacts, capture_output=True, text=True, timeout=CHECK_TIMEOUT)
                             if proc_contacts.returncode == 0:
@@ -605,7 +595,7 @@ class QuickSyncGUI(QMainWindow):
                                 count = len(vcard.parseCards(vcf_data))
                                 sig.action_finished.emit('contact_count', str(count))
                             try:
-                                _os.unlink(vcf_path)
+                                os.unlink(vcf_path)
                             except OSError:
                                 pass
                         except Exception:
@@ -666,16 +656,14 @@ class QuickSyncGUI(QMainWindow):
         self._update_status_bar('Kein Gerät verbunden', '#d9534f')
 
 
-
-
 # ─── File Manager Window (Robust & Fixed Parser) ──────────────────────────────
 
 class _FileManagerSignals(QObject):
     setup_ui     = Signal(list, str)
     set_status   = Signal(str)
     do_reload    = Signal()
-    show_preview = Signal(str)   # tmp_path
-    show_preview_err = Signal(str)  # error text
+    show_preview = Signal(str)
+    show_preview_err = Signal(str)
 
 
 class FileManagerWindow(QDialog):
@@ -692,15 +680,12 @@ class FileManagerWindow(QDialog):
         self._all_files: list[dict] = []
         self._fm_signals = _FileManagerSignals()
 
-        # Hauptlayout (Vertikal)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(4)
 
-        # 1. Toolbar (Dolphin-like)
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(4, 2, 4, 2)
-        from PySide6.QtWidgets import QStyle
         
         def tbtn(label, icon_name, slot, is_danger=False):
             b = QPushButton(' ' + label)
@@ -724,31 +709,26 @@ class FileManagerWindow(QDialog):
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
-        # Trennlinie unter Toolbar
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setFrameShadow(QFrame.Plain)
         layout.addWidget(sep)
 
-        # 2. Haupt-Inhaltsbereich mit Dreifach-Splitting (Sidebar | Tabelle | Info-Panel)
         main_hbox = QHBoxLayout()
         main_hbox.setSpacing(6)
 
-        # Links: Orte/Ordner-Sidebar (KDE-Style)
-        from PySide6.QtWidgets import QListWidget, QListWidgetItem
+        from PySide6.QtWidgets import QListWidget
         self.folder_sidebar = QListWidget()
         self.folder_sidebar.setFixedWidth(180)
         self.folder_sidebar.setStyleSheet("QListWidget { background: palette(window); border: none; font-weight: bold; }")
         self.folder_sidebar.itemClicked.connect(self._on_sidebar_folder_changed)
         main_hbox.addWidget(self.folder_sidebar)
 
-        # Vertikale Trennlinie
         v_sep1 = QFrame()
         v_sep1.setFrameShape(QFrame.VLine)
         v_sep1.setFrameShadow(QFrame.Plain)
         main_hbox.addWidget(v_sep1)
 
-        # Mitte: Die Dateitabelle
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(['Name', 'Datum', 'Größe'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
@@ -765,13 +745,11 @@ class FileManagerWindow(QDialog):
         self.table.itemSelectionChanged.connect(self._on_selection)
         main_hbox.addWidget(self.table, stretch=2)
 
-        # Vertikale Trennlinie
         v_sep2 = QFrame()
         v_sep2.setFrameShape(QFrame.VLine)
         v_sep2.setFrameShadow(QFrame.Plain)
         main_hbox.addWidget(v_sep2)
 
-        # Rechts: Dolphins Informations-Panel (Vorschau)
         preview_panel = QWidget()
         preview_panel.setFixedWidth(220)
         preview_layout = QVBoxLayout(preview_panel)
@@ -800,13 +778,11 @@ class FileManagerWindow(QDialog):
 
         layout.addLayout(main_hbox, stretch=1)
 
-        # Trennlinie über Statusbar
         sep_bottom = QFrame()
         sep_bottom.setFrameShape(QFrame.HLine)
         sep_bottom.setFrameShadow(QFrame.Plain)
         layout.addWidget(sep_bottom)
 
-        # 3. Statuszeile
         bottom_row = QHBoxLayout()
         bottom_row.setContentsMargins(6, 2, 6, 2)
         self.status_label = QLabel('')
@@ -818,7 +794,6 @@ class FileManagerWindow(QDialog):
         layout.addLayout(bottom_row)
 
         self.setModal(False)
-        # Signals jetzt verbinden, da status_label und space_label bereits existieren
         self._fm_signals.setup_ui.connect(self._setup_ui_data)
         self._fm_signals.set_status.connect(self.status_label.setText)
         self._fm_signals.do_reload.connect(self.reload)
@@ -841,8 +816,6 @@ class FileManagerWindow(QDialog):
             try:
                 cmd = self.parent_win.build_cmd('listfiles')
                 log = self.parent_win._signals
-                log.clear_output.emit()
-                log.append_text.emit('clear')
                 log.append_text.emit('Lade Dateiliste …')
                 fm_sig.set_status.emit('Lade Dateiliste … (CLI läuft)')
 
@@ -902,19 +875,13 @@ class FileManagerWindow(QDialog):
         import re as _re
         files = []
         current_folder = '/'
-        
-        # Ersetze hartnäckige geschützte Leerzeichen (NBSP) durch reguläre Spaces
         clean_text = text.replace('\xa0', ' ')
-        
-        # Super-robuste Regex, die auf IDs, Datums-Formate und Dateigrößen-Endungen matcht
         line_re = _re.compile(r'^(\d+):\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+[A-Z]\s+([\d\.]+\s+\w+)')
 
         for line in clean_text.splitlines():
             stripped = line.strip()
             if not stripped:
                 continue
-            
-            # Ordner-Wechsel erkennen (z.B. === /Pictures)
             if stripped.startswith('==='):
                 current_folder = stripped.replace('===', '').strip()
                 continue
@@ -937,7 +904,7 @@ class FileManagerWindow(QDialog):
         folders = sorted(list(set(f['folder'] for f in files)))
         if not folders:
             folders = ['/']
-        from PySide6.QtWidgets import QStyle, QListWidgetItem as _LWI
+        from PySide6.QtWidgets import QListWidgetItem as _LWI
         self.folder_sidebar.clear()
         for folder in folders:
             item = _LWI(self.style().standardIcon(QStyle.SP_DirIcon), folder)
@@ -1093,6 +1060,9 @@ class FileManagerWindow(QDialog):
                 fm_sig.set_status.emit(f'✗ {e}')
         threading.Thread(target=worker, daemon=True).start()
 
+
+# ─── Contacts Window ──────────────────────────────────────────────────────────
+
 class ContactsWindow(QDialog):
     COLUMNS = [('name', 'Name', 200), ('cell', 'Mobil', 130), ('home', 'Privat', 130), ('work', 'Geschäftl.', 130), ('email', 'E-Mail', 200)]
 
@@ -1137,7 +1107,6 @@ class ContactsWindow(QDialog):
         self.setModal(False)
         self.show()
         
-        # Sofortiger visueller Indikator im Hauptfenster
         self.parent_win.ui_kontakt_anzahl.setText("wird geladen...")
         QTimer.singleShot(50, self.reload)
 
@@ -1145,8 +1114,6 @@ class ContactsWindow(QDialog):
         pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
         suffix = f' — {pending} ungespeicherte Änderung(en)' if pending else ''
         self.status_label.setText(f'{len(self.cards)} Kontakt(e){suffix}')
-        
-        # Absolut direkte und sichere Aktualisierung des Hauptfenster-Labels aus dem UI-Thread
         self.parent_win.ui_kontakt_anzahl.setText(str(len(self.cards)))
 
     def reload(self):
