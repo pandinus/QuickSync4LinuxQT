@@ -440,7 +440,7 @@ class QuickSyncGUI(QMainWindow):
         threading.Thread(target=worker, daemon=True).start()
 
     def choose_file_and_run(self, action):
-        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', '', 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
+        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', os.path.expanduser('~'), '', 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
         if path:
             self.run_action(action, None, path)
 
@@ -553,7 +553,7 @@ class QuickSyncGUI(QMainWindow):
         if out: self.run_action('download', remote, out)
 
     def upload_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, 'Datei zum Hochladen wählen')
+        path, _ = QFileDialog.getOpenFileName(self,  'Datei zum Hochladen wählen')
         if not path: return
         remote = simple_input(self, 'Remote-Name', 'Remote-Dateiname auf dem Gerät:')
         if not remote: return
