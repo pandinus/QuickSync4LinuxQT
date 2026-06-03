@@ -22,11 +22,13 @@ DEFAULT_LOG_FILE = os.path.join(_LOG_DIR, 'QuickSync4LinuxGui.log')
 DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/QuickSync4LinuxGui/settings.json')
 
 # ─── Logger initialisieren ────────────────────────────────────────────────────
+import datetime as _dt
+
 def _setup_rotating_logger():
     os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
         DEFAULT_LOG_FILE,
-        maxBytes=1 * 1024 * 1024,
+        maxBytes=1 * 1024 * 1024,  # 1 MB
         backupCount=3,
         encoding='utf-8',
     )
@@ -39,6 +41,12 @@ def _setup_rotating_logger():
     return logger
 
 logger = _setup_rotating_logger()
+
+# Trennlinie beim Programmstart
+_start_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+logger.info('─' * 60)
+logger.info(f'Programmstart: {_start_time}')
+logger.info('─' * 60)
 
 # ─── JSON-Einstellungen laden/speichern ───────────────────────────────────────
 def load_settings(path=DEFAULT_CONFIG_FILE):
