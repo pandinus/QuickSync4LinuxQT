@@ -42,11 +42,23 @@ def _setup_rotating_logger():
 
 logger = _setup_rotating_logger()
 
-# Trennlinie beim Programmstart
-_start_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-logger.info('─' * 60)
-logger.info(f'Programmstart: {_start_time}')
-logger.info('─' * 60)
+# Trennlinie + Programmstart — nur einmal, über eine Sentinel-Datei
+_sentinel = os.path.join(_LOG_DIR, '.started')
+if not os.path.exists(_sentinel):
+    # Sentinel anlegen damit Subprozesse (CLI-Aufrufe) keinen eigenen Start loggen
+    open(_sentinel, 'w').close()
+    _start_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+    logger.info('─' * 60)
+    logger.info(f'Programmstart: {_start_time}')
+
+    import atexit as _atexit
+    def _log_exit():
+        _end_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+        logger.info(f'Programmende:  {_end_time}')
+        logger.info('─' * 60)
+        try: os.unlink(_sentinel)
+        except: pass
+    _atexit.register(_log_exit)
 
 # ─── JSON-Einstellungen laden/speichern ───────────────────────────────────────
 def load_settings(path=DEFAULT_CONFIG_FILE):
