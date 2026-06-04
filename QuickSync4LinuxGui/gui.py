@@ -344,6 +344,7 @@ class QuickSyncGUI(QMainWindow):
     def _log_raw_output(self, text: str):
         backend.log(text)
 
+    
     def set_log_file(self, path: str | None = None):
         self._append_output(f'Log-Datei: {backend.DEFAULT_LOG_FILE} (max. 1 MB, 3 Backups)')
 
@@ -425,10 +426,29 @@ class QuickSyncGUI(QMainWindow):
         if path:
             self.run_action('getcontacts', None, path)
 
+    
     def open_log(self):
-        initial = self._log_file if self._log_file else ''
-        initial_dir = os.path.dirname(os.path.abspath(initial)) if initial else os.getcwd()
-        path, _ = QFileDialog.getOpenFileName(self, 'Log-Datei wählen', initial_dir, 'Log-Dateien (*.log);;Alle Dateien (*)')
+        # 1. Nutze das Attribut der GUI, falls gesetzt, andernfalls direkt das Backend-Standard-Log
+        log_path = getattr(self, '_log_file', None) or backend.DEFAULT_LOG_FILE
+        
+        # 2. Pfad absolut auflösen (Tilde expandieren)
+        path_target = os.path.abspath(os.path.expanduser(log_path))
+        
+        # 3. Den Ordner ermitteln (egal ob Datei oder Ordner übergeben wurde)
+        initial_dir = path_target if os.path.isdir(path_target) else os.path.dirname(path_target)
+
+        # Sicherheitsnetz: Falls die App frisch installiert ist und der Ordner noch fehlt
+        if not os.path.exists(initial_dir):
+            try:
+                os.makedirs(initial_dir, exist_ok=True)
+            except Exception:
+                initial_dir = os.path.expanduser('~')
+
+        # Dialog im richtigen Verzeichnis öffnen
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Log-Datei wählen', initial_dir, 'Log-Dateien (*.log);;Alle Dateien (*)'
+        )
+        
         if not path:
             return
         try:

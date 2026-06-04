@@ -17,15 +17,16 @@ DEFAULT_BAUD       = '9600'
 
 BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$')
 
-_LOG_DIR         = os.path.expanduser('~/.config/QuickSync4LinuxGui')
-DEFAULT_LOG_FILE = os.path.join(_LOG_DIR, 'QuickSync4LinuxGui.log')
-DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/QuickSync4LinuxGui/settings.json')
+_CONFIG_DIR = os.path.expanduser('~/.config/QuickSync4LinuxGui')
+DEFAULT_LOG_FILE = os.path.join(_CONFIG_DIR, 'QuickSync4LinuxGui.log')
+DEFAULT_CONFIG_FILE = os.path.join(_CONFIG_DIR, 'settings.json')
 
 # ─── Logger initialisieren ────────────────────────────────────────────────────
 import datetime as _dt
 
 def _setup_rotating_logger():
-    os.makedirs(_LOG_DIR, exist_ok=True)
+    os.makedirs(_CONFIG_DIR, exist_ok=True)
+    #os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
         DEFAULT_LOG_FILE,
         maxBytes=1 * 1024 * 1024,  # 1 MB
@@ -43,7 +44,7 @@ def _setup_rotating_logger():
 logger = _setup_rotating_logger()
 
 # Trennlinie + Programmstart — nur einmal, über eine Sentinel-Datei
-_sentinel = os.path.join(_LOG_DIR, '.started')
+_sentinel = os.path.join(_CONFIG_DIR, '.started')
 if not os.path.exists(_sentinel):
     # Sentinel anlegen damit Subprozesse (CLI-Aufrufe) keinen eigenen Start loggen
     open(_sentinel, 'w').close()
