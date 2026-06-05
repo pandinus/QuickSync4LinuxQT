@@ -26,6 +26,7 @@ import datetime as _dt
 
 def _setup_rotating_logger():
     os.makedirs(_CONFIG_DIR, exist_ok=True)
+    #os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
         DEFAULT_LOG_FILE,
         maxBytes=1 * 1024 * 1024,  # 1 MB
@@ -91,8 +92,11 @@ def save_settings(path=DEFAULT_CONFIG_FILE):
 load_settings()
 
 # ─── Bluetooth-Geräteerkennung ────────────────────────────────────────────────
+# Bekannte Gigaset-Gerätekennzeichnungen
+GIGASET_KEYWORDS = ['gigaset', 's700', 's650', 's810', 'maxwell', 'sl450', 'cl660']
+
 def discover_devices() -> list[tuple[str, str]]:
-    """Gibt eine Liste von (mac, label) via bluetoothctl zurück."""
+    """Gibt nur Gigaset-Geräte als Liste von (mac, label) via bluetoothctl zurück."""
     devices = []
     try:
         out = subprocess.check_output(
@@ -101,7 +105,10 @@ def discover_devices() -> list[tuple[str, str]]:
         for line in out.splitlines():
             m = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+(.*)', line)
             if m:
-                devices.append((m.group(1), m.group(2).strip()))
+                mac   = m.group(1)
+                label = m.group(2).strip()
+                if any(kw in label.lower() for kw in GIGASET_KEYWORDS):
+                    devices.append((mac, label))
     except Exception:
         pass
     return devices
