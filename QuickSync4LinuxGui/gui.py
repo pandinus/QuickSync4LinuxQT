@@ -8,14 +8,16 @@ import subprocess
 import tempfile
 import threading
 
-from PySide6.QtCore import Qt, Signal, QObject, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit, QFrame,
     QDialog, QDialogButtonBox, QMessageBox, QFileDialog,
-    QFormLayout, QSizePolicy, QStatusBar, QAbstractItemView, QStyle
+    QFormLayout, QSizePolicy, QStatusBar, QAbstractItemView, QStyle,
+    QTableWidget, QTableWidgetItem, QHeaderView, QListWidget,
+    QListWidgetItem, QSplitter, QSpinBox,
 )
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPixmap, QColor
+from PySide6.QtCore import Qt, Signal, QObject, QTimer
 
 from . import vcard
 from . import btserial
@@ -383,14 +385,14 @@ class QuickSyncGUI(QMainWindow):
     def choose_file_and_run(self, action):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', os.path.expanduser('~'), '', 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
+        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
         if path:
             self.run_action(action, None, path)
 
     def get_contacts(self):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getSaveFileName(self, 'Kontakte speichern als', '', 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
+        path, _ = QFileDialog.getSaveFileName(self, 'Kontakte speichern als', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
         if path:
             self.run_action('getcontacts', None, path)
 
@@ -474,7 +476,6 @@ class QuickSyncGUI(QMainWindow):
 
     def open_contacts_manager(self):
         if not self.check_connection_or_warn():
-            return
             return
         if hasattr(self, '_contacts_win') and self._contacts_win is not None:
             self._contacts_win.raise_()
@@ -582,10 +583,10 @@ class QuickSyncGUI(QMainWindow):
                         sig.action_finished.emit('info', proc_info.stdout)
                     else:
                         friendly = backend.interpret_connection_error(proc_info.stderr)
-                        result = friendly or ('✗ Gerät nicht erreichbar\n' + proc_info.stderr)
+                        result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {proc_info.stderr.strip()}'
             except Exception as e:
                 friendly = backend.interpret_connection_error(str(e))
-                result = friendly or f'✗ Fehler: {e}'
+                result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {e}'
 
             status = ((f'{label} verbunden' if label else 'Gerät verbunden', '#5cb85c') if connected else ('Kein Gerät verbunden', '#d9534f'))
             sig.connection_state.emit(connected)
@@ -608,37 +609,652 @@ class QuickSyncGUI(QMainWindow):
 
 # ─── Zusätzliche Fenster-Klassen ──────────────────────────────────────────────
 
+class _FileManagerSignals(QObject):
+    setup_ui     = Signal(list, str)
+    set_status   = Signal(str)
+    do_reload    = Signal()
+    show_preview = Signal(str)   # tmp_path
+    show_preview_err = Signal(str)  # error text
+
+
+
 class FileManagerWindow(QDialog):
-    def __init__(self, parent=None):
+    """Dateimanager im KDE/Dolphin-Look mit fixiertem Gigaset-Parser."""
+
+    IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.gif'}
+
+    def __init__(self, parent):
         super().__init__(parent)
-        self.setWindowTitle('Dateimanager')
-        self.resize(640, 440)
+        self.parent_win = parent
+        self.setWindowTitle('Dateimanager — Dolphin Style')
+        self.resize(950, 550)
+        self._files: list[dict] = []
+        self._all_files: list[dict] = []
+        self._fm_signals = _FileManagerSignals()
+
+        # Hauptlayout (Vertikal)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
 
-        lbl = QLabel('Dateimanager-Inhalte (Platzhalter)')
-        lbl.setAlignment(Qt.AlignCenter)
-        layout.addWidget(lbl)
+        # 1. Toolbar (Dolphin-like)
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(4, 2, 4, 2)
+        from PySide6.QtWidgets import QStyle
+        
+        def tbtn(label, icon_name, slot, is_danger=False):
+            b = QPushButton(' ' + label)
+            b.setIcon(self.style().standardIcon(icon_name))
+            b.clicked.connect(slot)
+            if is_danger:
+                b.setStyleSheet("QPushButton { color: #cc241d; }")
+            else:
+                b.setStyleSheet("QPushButton { text-align: left; }")
+            return b
 
-        btns = QDialogButtonBox(QDialogButtonBox.Close)
-        btns.rejected.connect(self.reject)
-        layout.addWidget(btns)
+        btn_reload = tbtn('Aktualisieren', QStyle.SP_BrowserReload, self.reload)
+        btn_download = tbtn('Herunterladen', QStyle.SP_ArrowDown, self.download_selected)
+        btn_upload = tbtn('Hochladen', QStyle.SP_ArrowUp, self.upload_file)
+        btn_delete = tbtn('Löschen', QStyle.SP_TrashIcon, self.delete_selected, is_danger=True)
+        
+        toolbar.addWidget(btn_reload)
+        toolbar.addWidget(btn_download)
+        toolbar.addWidget(btn_upload)
+        toolbar.addWidget(btn_delete)
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
+
+        # Trennlinie unter Toolbar
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setFrameShadow(QFrame.Plain)
+        layout.addWidget(sep)
+
+        # 2. Haupt-Inhaltsbereich mit Dreifach-Splitting (Sidebar | Tabelle | Info-Panel)
+        main_hbox = QHBoxLayout()
+        main_hbox.setSpacing(6)
+
+        # Links: Orte/Ordner-Sidebar (KDE-Style)
+        from PySide6.QtWidgets import QListWidget, QListWidgetItem
+        self.folder_sidebar = QListWidget()
+        self.folder_sidebar.setFixedWidth(180)
+        self.folder_sidebar.setStyleSheet("QListWidget { background: palette(window); border: none; font-weight: bold; }")
+        self.folder_sidebar.itemClicked.connect(self._on_sidebar_folder_changed)
+        main_hbox.addWidget(self.folder_sidebar)
+
+        # Vertikale Trennlinie
+        v_sep1 = QFrame()
+        v_sep1.setFrameShape(QFrame.VLine)
+        v_sep1.setFrameShadow(QFrame.Plain)
+        main_hbox.addWidget(v_sep1)
+
+        # Mitte: Die Dateitabelle
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(['Name', 'Datum', 'Größe'])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setColumnWidth(0, 300)
+        self.table.setColumnWidth(1, 130)
+        self.table.setColumnWidth(2, 90)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.itemSelectionChanged.connect(self._on_selection)
+        main_hbox.addWidget(self.table, stretch=2)
+
+        # Vertikale Trennlinie
+        v_sep2 = QFrame()
+        v_sep2.setFrameShape(QFrame.VLine)
+        v_sep2.setFrameShadow(QFrame.Plain)
+        main_hbox.addWidget(v_sep2)
+
+        # Rechts: Dolphins Informations-Panel (Vorschau)
+        preview_panel = QWidget()
+        preview_panel.setFixedWidth(220)
+        preview_layout = QVBoxLayout(preview_panel)
+        preview_layout.setContentsMargins(4, 0, 4, 0)
+
+        self.preview_label = QLabel('Keine Auswahl')
+        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setStyleSheet('font-weight: bold; color: palette(window-text);')
+        
+        self.preview_image = QLabel()
+        self.preview_image.setAlignment(Qt.AlignCenter)
+        self.preview_image.setMinimumHeight(180)
+        self.preview_image.setStyleSheet('background: palette(base); border: 1px solid palette(mid); border-radius: 4px;')
+
+        self.preview_info = QTextEdit()
+        self.preview_info.setReadOnly(True)
+        self.preview_info.setFont(QFont('Monospace', 8))
+        self.preview_info.setStyleSheet("QTextEdit { border: none; background: transparent; }")
+        self.preview_info.setMaximumHeight(120)
+
+        preview_layout.addWidget(self.preview_label)
+        preview_layout.addWidget(self.preview_image)
+        preview_layout.addWidget(self.preview_info)
+        preview_layout.addStretch()
+        main_hbox.addWidget(preview_panel)
+
+        layout.addLayout(main_hbox, stretch=1)
+
+        # Trennlinie über Statusbar
+        sep_bottom = QFrame()
+        sep_bottom.setFrameShape(QFrame.HLine)
+        sep_bottom.setFrameShadow(QFrame.Plain)
+        layout.addWidget(sep_bottom)
+
+        # 3. Statuszeile
+        bottom_row = QHBoxLayout()
+        bottom_row.setContentsMargins(6, 2, 6, 2)
+        self.status_label = QLabel('')
+        self.space_label = QLabel('')
+        self.space_label.setStyleSheet('color: palette(mid); font-size: 11px;')
+        bottom_row.addWidget(self.status_label)
+        bottom_row.addStretch()
+        bottom_row.addWidget(self.space_label)
+        layout.addLayout(bottom_row)
+
+        self.setModal(False)
+        # Signals jetzt verbinden, da status_label und space_label bereits existieren
+        self._fm_signals.setup_ui.connect(self._setup_ui_data)
+        self._fm_signals.set_status.connect(self.status_label.setText)
+        self._fm_signals.do_reload.connect(self.reload)
+        self._fm_signals.show_preview.connect(self._show_preview)
+        self._fm_signals.show_preview_err.connect(self.preview_image.setText)
+        self.show()
+        QTimer.singleShot(50, self.reload)
+
+    def reload(self):
+        self.status_label.setText('Lade Dateiliste …')
+        self.space_label.setText('')
+        self.table.setRowCount(0)
+        self.folder_sidebar.clear()
+        self._all_files = []
+        self._files = []
+        
+        fm_sig = self._fm_signals
+
+        def worker():
+            try:
+                cmd = self.parent_win.build_cmd('listfiles')
+                log = self.parent_win._signals
+                log.append_text.emit('Lade Dateiliste …')
+                fm_sig.set_status.emit('Lade Dateiliste … (CLI läuft)')
+
+                try:
+                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    log.append_text.emit(f"[FileManager] ✗ Timeout nach {CLI_DEFAULT_TIMEOUT}s")
+                    fm_sig.set_status.emit(f'✗ Timeout ({CLI_DEFAULT_TIMEOUT}s überschritten)')
+                    return
+
+                output = proc.stdout or ''
+                stderr = proc.stderr or ''
+
+                if stderr:
+                    log.append_text.emit(f"[FileManager] stderr: {stderr[:300]}")
+
+                if not output and proc.returncode != 0:
+                    error_msg = f"✗ CLI Fehler (Code {proc.returncode}): {stderr[:200] or 'kein Fehlertext'}"
+                    log.append_text.emit(f"[FileManager] {error_msg}")
+                    fm_sig.set_status.emit(error_msg)
+                    return
+
+                try:
+                    files = self._parse_listfiles(output)
+                except Exception as parse_exc:
+                    import traceback
+                    log.append_text.emit(f"[FileManager] Parse-Fehler:\n{traceback.format_exc()}")
+                    fm_sig.set_status.emit(f'✗ Parse-Fehler: {parse_exc}')
+                    return
+
+                import re as _re
+                total = _re.search(r'Total Space:\s*([\d\.]+\s*\w+)', output, _re.IGNORECASE)
+                free  = _re.search(r'Free Space:\s*([\d\.]+\s*\w+)', output, _re.IGNORECASE)
+                space_text = ''
+                if total and free:
+                    space_text = f'Frei: {free.group(1)}  |  Gesamt: {total.group(1)}'
+
+                if not files:
+                    msg = "✗ Keine Dateien verarbeitet. Rohdaten im Konsole-Tab prüfen."
+                    log.append_text.emit(f"[FileManager] {msg}")
+                    fm_sig.set_status.emit(msg)
+                    return
+
+                log.append_text.emit(f'✓ Dateiliste geladen: {len(files)} Dateien in {len(set(f["folder"] for f in files))} Ordner')
+                fm_sig.setup_ui.emit(files, space_text)
+            except Exception as e:
+                import traceback
+                tb = traceback.format_exc()
+                try:
+                    self.parent_win._signals.append_text.emit(f"[FileManager] Exception:\n{tb}")
+                except Exception:
+                    pass
+                fm_sig.set_status.emit(f'✗ Fehler: {e}')
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _parse_listfiles(self, text):
+        import re as _re
+        files = []
+        current_folder = '/'
+        
+        # Ersetze hartnäckige geschützte Leerzeichen (NBSP) durch reguläre Spaces
+        clean_text = text.replace('\xa0', ' ')
+        
+        # Super-robuste Regex, die auf IDs, Datums-Formate und Dateigrößen-Endungen matcht
+        line_re = _re.compile(r'^(\d+):\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+[A-Z]\s+([\d\.]+\s+\w+)')
+
+        for line in clean_text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            
+            # Ordner-Wechsel erkennen (z.B. === /Pictures)
+            if stripped.startswith('==='):
+                current_folder = stripped.replace('===', '').strip()
+                continue
+                
+            m = line_re.match(stripped)
+            if m:
+                file_id, name, date_str, time_str, size_str = m.groups()
+                files.append({
+                    'id':     file_id,
+                    'folder': current_folder,
+                    'name':   name.strip(),
+                    'date':   f"{date_str} {time_str}",
+                    'size':   size_str,
+                })
+        return files
+
+    def _setup_ui_data(self, files, space_text):
+        self._all_files = files
+        self.space_label.setText(space_text)
+        folders = sorted(list(set(f['folder'] for f in files)))
+        if not folders:
+            folders = ['/']
+        from PySide6.QtWidgets import QStyle, QListWidgetItem as _LWI
+        self.folder_sidebar.clear()
+        for folder in folders:
+            item = _LWI(self.style().standardIcon(QStyle.SP_DirIcon), folder)
+            self.folder_sidebar.addItem(item)
+        if self.folder_sidebar.count() > 0:
+            self.folder_sidebar.setCurrentRow(0)
+            self._filter_by_folder(self.folder_sidebar.item(0).text())
+        else:
+            self.status_label.setText('0 Dateien gefunden.')
+
+    def _on_sidebar_folder_changed(self, item):
+        self._filter_by_folder(item.text())
+
+    def _filter_by_folder(self, folder_name):
+        self._files = [f for f in self._all_files if f['folder'] == folder_name]
+        self._populate(self._files)
+
+    def _populate(self, files):
+        self.table.setRowCount(0)
+        from PySide6.QtWidgets import QStyle as _QStyle
+        img_exts = self.IMAGE_EXTS
+        for f in files:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            
+            ext = os.path.splitext(f['name'])[1].lower()
+            icon_type = _QStyle.SP_FileDialogDetailedView if ext in img_exts else _QStyle.SP_FileIcon
+            icon = self.style().standardIcon(icon_type)
+            
+            name_item = QTableWidgetItem(f['name'])
+            name_item.setIcon(icon)
+            
+            self.table.setItem(row, 0, name_item)
+            self.table.setItem(row, 1, QTableWidgetItem(f.get('date', '-')))
+            self.table.setItem(row, 2, QTableWidgetItem(f['size']))
+            
+        self.table.resizeRowsToContents()
+        current_folder = self.folder_sidebar.currentItem().text() if self.folder_sidebar.currentItem() else ""
+        self.status_label.setText(f'{len(files)} Datei(en) in "{current_folder}"')
+
+    def _selected_file(self):
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self._files):
+            return None
+        return self._files[row]
+
+    def _on_selection(self):
+        f = self._selected_file()
+        if not f:
+            self.preview_image.clear()
+            self.preview_label.setText('Keine Auswahl')
+            self.preview_info.clear()
+            return
+        ext = os.path.splitext(f['name'])[1].lower()
+        self.preview_label.setText(f['name'])
+        self.preview_info.setText(f"<b>ID:</b> {f['id']}<br><b>Pfad:</b> {f['folder']}/{f['name']}<br><b>Größe:</b> {f['size']}<br><b>Datum:</b> {f['date']}")
+        if ext in self.IMAGE_EXTS:
+            self.preview_image.setText('⏳ Lade Bild …')
+            self._load_preview(f)
+        else:
+            self.preview_image.setText('Keine Bildvorschau')
+
+    def _load_preview(self, f):
+        fm_sig = self._fm_signals
+        def worker():
+            try:
+                fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(f['name'])[1])
+                os.close(fd)
+                remote_path = f"{f['folder']}/{f['name']}"
+                cmd = self.parent_win.build_cmd('download', options=remote_path, file=tmp_path)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if proc.returncode == 0 and os.path.exists(tmp_path):
+                    fm_sig.show_preview.emit(tmp_path)
+                else:
+                    fm_sig.show_preview_err.emit('✗ Vorschau nicht verfügbar')
+            except Exception as e:
+                fm_sig.show_preview_err.emit(f'✗ {e}')
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _show_preview(self, path):
+        pixmap = QPixmap(path)
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        if pixmap.isNull():
+            self.preview_image.setText('✗ Bildfehler')
+            return
+        scaled = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.preview_image.setPixmap(scaled)
+
+    def download_selected(self):
+        f = self._selected_file()
+        if not f:
+            QMessageBox.information(self, 'Hinweis', 'Bitte eine Datei auswählen.')
+            return
+        save_path, _ = QFileDialog.getSaveFileName(self, 'Speichern als', f['name'])
+        if not save_path:
+            return
+        self.status_label.setText(f'⏳ Download: {f["name"]} …')
+        fm_sig = self._fm_signals
+        def worker():
+            try:
+                remote_path = f"{f['folder']}/{f['name']}"
+                cmd = self.parent_win.build_cmd('download', options=remote_path, file=save_path)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
+                msg = f'✓ Gespeichert: {save_path}' if proc.returncode == 0 else '✗ Fehler beim Download'
+                fm_sig.set_status.emit(msg)
+            except Exception as e:
+                fm_sig.set_status.emit(f'✗ {e}')
+        threading.Thread(target=worker, daemon=True).start()
+
+    def upload_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, 'Datei zum Hochladen wählen')
+        if not path:
+            return
+        self.status_label.setText(f'⏳ Upload: {os.path.basename(path)} …')
+        fm_sig = self._fm_signals
+        def worker():
+            try:
+                cmd = self.parent_win.build_cmd('upload', options=os.path.basename(path), file=path)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
+                if proc.returncode == 0:
+                    fm_sig.set_status.emit('✓ Upload abgeschlossen')
+                    fm_sig.do_reload.emit()
+                else:
+                    fm_sig.set_status.emit('✗ Fehler beim Upload')
+            except Exception as e:
+                fm_sig.set_status.emit(f'✗ {e}')
+        threading.Thread(target=worker, daemon=True).start()
+
+    def delete_selected(self):
+        f = self._selected_file()
+        if not f:
+            QMessageBox.information(self, 'Hinweis', 'Bitte eine Datei auswählen.')
+            return
+        r = QMessageBox.question(self, 'Löschen', f'Datei "{f["name"]}" wirklich löschen?')
+        if r != QMessageBox.Yes:
+            return
+        self.status_label.setText(f'⏳ Lösche: {f["name"]} …')
+        fm_sig = self._fm_signals
+        def worker():
+            try:
+                remote_path = f"{f['folder']}/{f['name']}"
+                cmd = self.parent_win.build_cmd('delete', options=remote_path)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
+                if proc.returncode == 0:
+                    fm_sig.set_status.emit(f'✓ Gelöscht: {f["name"]}')
+                    fm_sig.do_reload.emit()
+                else:
+                    fm_sig.set_status.emit('✗ Fehler beim Löschen')
+            except Exception as e:
+                fm_sig.set_status.emit(f'✗ {e}')
+        threading.Thread(target=worker, daemon=True).start()
 
 
 class ContactsWindow(QDialog):
-    def __init__(self, parent=None):
+    COLUMNS = [('name', 'Name', 200), ('cell', 'Mobil', 130), ('home', 'Privat', 130), ('work', 'Geschäftl.', 130), ('email', 'E-Mail', 200)]
+
+    def __init__(self, parent: QuickSyncGUI):
         super().__init__(parent)
+        self.parent_win = parent
         self.setWindowTitle('Kontakte verwalten')
-        self.resize(640, 440)
+        self.resize(900, 500)
+        self.cards: list[dict] = []
+        self._row_to_index: dict[int, int] = {}
+        self.modified_luids: set[str] = set()
+        self.deleted_luids: set[str] = set()
+        self.temp_vcf_path: str | None = None
+        self._reload_thread: threading.Thread | None = None
+
         layout = QVBoxLayout(self)
+        toolbar = QHBoxLayout()
+        def tbtn(label, slot):
+            b = QPushButton(label); b.clicked.connect(slot); toolbar.addWidget(b); return b
+        tbtn('Neu',        self.new_contact)
+        tbtn('Bearbeiten', self.edit_selected)
+        tbtn('Löschen',    self.delete_selected)
+        toolbar.addSpacing(12)
+        tbtn('Neu laden',  self.reload_with_confirm)
+        tbtn('Speichern',  self.save)
+        tbtn('Übertragen', self.transmit)
+        tbtn('Schließen',  self._on_close_request)
+        toolbar.addStretch()
+        layout.addLayout(toolbar)
 
-        lbl = QLabel('Kontaktverwaltungs-Inhalte (Platzhalter)')
-        lbl.setAlignment(Qt.AlignCenter)
-        layout.addWidget(lbl)
+        self.table = QTableWidget(0, len(self.COLUMNS))
+        self.table.setHorizontalHeaderLabels([c[1] for c in self.COLUMNS])
+        for i, (_, _, w) in enumerate(self.COLUMNS): self.table.setColumnWidth(i, w)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.doubleClicked.connect(lambda _: self.edit_selected())
+        layout.addWidget(self.table, stretch=1)
 
-        btns = QDialogButtonBox(QDialogButtonBox.Close)
-        btns.rejected.connect(self.reject)
+        self.status_label = QLabel('')
+        layout.addWidget(self.status_label)
+        self.setModal(False)
+        self.show()
+        
+        # Sofortiger visueller Indikator im Hauptfenster
+        self.parent_win.ui_kontakt_anzahl.setText("wird geladen...")
+        QTimer.singleShot(50, self.reload)
+
+    def _refresh_status(self):
+        pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
+        suffix = f' — {pending} ungespeicherte Änderung(en)' if pending else ''
+        self.status_label.setText(f'{len(self.cards)} Kontakt(e){suffix}')
+        
+        # Absolut direkte und sichere Aktualisierung des Hauptfenster-Labels aus dem UI-Thread
+        self.parent_win.ui_kontakt_anzahl.setText(str(len(self.cards)))
+
+    def reload(self):
+        if self._reload_thread and self._reload_thread.is_alive():
+            self.parent_win._signals.append_text.emit('⚠ Reload läuft bereits — bitte warten.')
+            return
+        self.parent_win.output.clear()
+        self.status_label.setText('Lade Kontakte …')
+        sig = self.parent_win._signals
+
+        def worker():
+            if not self.parent_win.current_device():
+                QTimer.singleShot(0, self, lambda: self._on_error('Laden fehlgeschlagen', RuntimeError('Kein Gerät verbunden.')))
+                return
+            fd, path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_')
+            os.close(fd)
+            try:
+                self.parent_win.run_cli_sync('getcontacts', file=path)
+                size = os.path.getsize(path)
+                sig.append_text.emit(f'VCF geladen: {size} Bytes')
+                with open(path, 'r', encoding='utf-8') as f:
+                    vcf = f.read()
+                if not vcf.strip():
+                    raise RuntimeError('Telefon hat eine leere Antwort geliefert.')
+                cards = vcard.parseCards(vcf)
+                sig.append_text.emit(f'{len(cards)} Kontakt(e) verarbeitet')
+                QTimer.singleShot(0, self.parent_win, lambda: self.parent_win.ui_kontakt_anzahl.setText(str(len(cards))))
+                QTimer.singleShot(0, self, lambda: self._populate(cards, path))
+            except Exception as e:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+                QTimer.singleShot(0, self, lambda: self._on_error('Laden fehlgeschlagen', e))
+
+        self._reload_thread = threading.Thread(target=worker, daemon=True)
+        self._reload_thread.start()
+
+    def reload_with_confirm(self):
+        pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
+        if pending > 0:
+            r = QMessageBox.question(self, 'Neu laden', 'Es gibt ungespeicherte Änderungen. Trotzdem neu laden?')
+            if r != QMessageBox.Yes:
+                return
+        self.modified_luids.clear()
+        self.deleted_luids.clear()
+        self.reload()
+
+    def _on_error(self, title, exc):
+        self.status_label.setText('')
+        QMessageBox.critical(self, title, str(exc))
+
+    def _populate(self, cards, temp_path=None):
+        self.temp_vcf_path = temp_path
+        self.cards = cards
+        self._rebuild_table()
+
+    def _rebuild_table(self):
+        self.table.setRowCount(0)
+        self._row_to_index = {}
+        for i, c in enumerate(self.cards):
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self._row_to_index[row] = i
+            values = [
+                vcard.displayName(c),
+                c.get('tels', {}).get('CELL', ''),
+                c.get('tels', {}).get('HOME', ''),
+                c.get('tels', {}).get('WORK', ''),
+                (c.get('emails', {}).get('HOME', '') or c.get('emails', {}).get('WORK', '') or c.get('emails', {}).get('OTHER', '')),
+            ]
+            for col, val in enumerate(values):
+                self.table.setItem(row, col, QTableWidgetItem(val))
+        self._refresh_status()
+
+    def new_contact(self):
+        blank = {'luid': None, 'last_name': '', 'first_name': '', 'middle_name': '', 'prefix': '', 'suffix': '', 'nickname': '', 'org': '', 'title': '', 'bday': '', 'note': '', 'url': '', 'tels': {'HOME': '', 'CELL': '', 'WORK': '', 'FAX': '', 'OTHER': ''}, 'emails': {'HOME': '', 'WORK': '', 'OTHER': ''}, 'addresses': {'HOME': {'pobox': '', 'ext': '', 'street': '', 'city': '', 'region': '', 'zip': '', 'country': ''}, 'WORK': {'pobox': '', 'ext': '', 'street': '', 'city': '', 'region': '', 'zip': '', 'country': ''}}, 'extras': []}
+        ContactEditor(self, blank, on_save=lambda c: (self.cards.append(c), self._rebuild_table()))
+
+    def edit_selected(self):
+        rows = self.table.selectedItems()
+        if not rows: return
+        idx = self._row_to_index.get(self.table.currentRow())
+        if idx is not None:
+            ContactEditor(self, self.cards[idx], on_save=lambda c: (self.modified_luids.add(c['luid']) if c.get('luid') else None, self._rebuild_table()))
+
+    def delete_selected(self):
+        rows = self.table.selectedItems()
+        if not rows: return
+        idx = self._row_to_index.get(self.table.currentRow())
+        if idx is not None:
+            luid = self.cards[idx].get('luid')
+            if luid: self.deleted_luids.add(luid)
+            del self.cards[idx]
+            self._rebuild_table()
+
+    def save(self):
+        if not self.temp_vcf_path: return
+        with open(self.temp_vcf_path, 'w', encoding='utf-8') as f:
+            for c in self.cards: f.write(vcard.formatCard(c))
+
+    def transmit(self):
+        deletes = list(self.deleted_luids)
+        creates = [c for c in self.cards if not c.get('luid')]
+        
+        def worker():
+            try:
+                for luid in deletes: self.parent_win.run_cli_sync('deletecontact', options=luid)
+                if creates:
+                    fd, path = tempfile.mkstemp(suffix='.vcf')
+                    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                        for c in creates: f.write(vcard.formatCard(c))
+                    self.parent_win.run_cli_sync('createcontacts', file=path)
+                    try: os.unlink(path)
+                    except OSError: pass
+                QTimer.singleShot(0, self.reload)
+            except Exception as e:
+                QTimer.singleShot(0, lambda: QMessageBox.critical(self, 'Fehler', str(e)))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_close_request(self): self.close()
+
+
+
+class ContactEditor(QDialog):
+    def __init__(self, parent, card, on_save):
+        super().__init__(parent)
+        self.setWindowTitle('Kontakt bearbeiten' if card.get('luid') else 'Neuer Kontakt')
+        self.resize(400, 450)
+        self.card = card
+        self.on_save = on_save
+        self.entries = {}
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        
+        self.entries['first_name'] = QLineEdit(card.get('first_name', ''))
+        self.entries['last_name'] = QLineEdit(card.get('last_name', ''))
+        self.entries['cell'] = QLineEdit(card.get('tels', {}).get('CELL', ''))
+        self.entries['home'] = QLineEdit(card.get('tels', {}).get('HOME', ''))
+        self.entries['email'] = QLineEdit(card.get('emails', {}).get('HOME', ''))
+        
+        form.addRow('Vorname:', self.entries['first_name'])
+        form.addRow('Nachname:', self.entries['last_name'])
+        form.addRow('Mobil:', self.entries['cell'])
+        form.addRow('Telefon:', self.entries['home'])
+        form.addRow('E-Mail:', self.entries['email'])
+        layout.addLayout(form)
+        
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(self._save); btns.rejected.connect(self.reject)
         layout.addWidget(btns)
+        self.show()
 
+    def _save(self):
+        self.card['first_name'] = self.entries['first_name'].text()
+        self.card['last_name'] = self.entries['last_name'].text()
+        self.card.setdefault('tels', {})['CELL'] = self.entries['cell'].text()
+        self.card.setdefault('tels', {})['HOME'] = self.entries['home'].text()
+        self.card.setdefault('emails', {})['HOME'] = self.entries['email'].text()
+        self.on_save(self.card)
+        self.accept()
+
+
+def simple_input(parent, title, prompt) -> str | None:
+    dlg = QDialog(parent); dlg.setWindowTitle(title)
+    l = QVBoxLayout(dlg); l.addWidget(QLabel(prompt)); e = QLineEdit(); l.addWidget(e)
+    b = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); b.accepted.connect(dlg.accept); b.rejected.connect(dlg.reject); l.addWidget(b)
+    if dlg.exec() == QDialog.Accepted: return e.text().strip() or None
+    return None
 
 def run():
     import sys
