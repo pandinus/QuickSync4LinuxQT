@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """QuickSync4Linux GUI – PySide6 version (drop-in replacement for the tkinter gui.py)"""
 
-import glob
 import json
 import os
 import re
@@ -21,73 +20,23 @@ from PySide6.QtGui import QFont
 from . import vcard
 from . import btserial
 
-OBEX_RECOVERY_DELAY = 1.5
-DEFAULT_DEVICE = '/dev/ttyACM0'
-DEFAULT_BAUD = '9600'
-
 from . import backend
 
-DEFAULT_LOG_FILE = backend.DEFAULT_LOG_FILE
-BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}(@\d+)?$')
-CHECK_TIMEOUT = 60
-DISCOVER_TIMEOUT = 10
-CLI_DEFAULT_TIMEOUT = 300
-DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/QuickSync4LinuxGui/settings.json')
+# Konstanten aus backend übernehmen
+DEFAULT_LOG_FILE    = backend.DEFAULT_LOG_FILE
+DEFAULT_CONFIG_FILE = backend.DEFAULT_CONFIG_FILE
+BT_MAC_RE           = backend.BT_MAC_RE
 
+def CHECK_TIMEOUT():       return backend.CHECK_TIMEOUT
+def DISCOVER_TIMEOUT():    return backend.DISCOVER_TIMEOUT
+def CLI_DEFAULT_TIMEOUT(): return backend.CLI_DEFAULT_TIMEOUT
+def DEFAULT_BAUD():        return backend.DEFAULT_BAUD
 
-def _load_settings_from_disk(path=DEFAULT_CONFIG_FILE):
-    try:
-        if not os.path.exists(path):
-            return
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        if 'CHECK_TIMEOUT' in data:
-            globals()['CHECK_TIMEOUT'] = int(data['CHECK_TIMEOUT'])
-        if 'DISCOVER_TIMEOUT' in data:
-            globals()['DISCOVER_TIMEOUT'] = int(data['DISCOVER_TIMEOUT'])
-        if 'CLI_DEFAULT_TIMEOUT' in data:
-            globals()['CLI_DEFAULT_TIMEOUT'] = int(data['CLI_DEFAULT_TIMEOUT'])
-        if 'DEFAULT_BAUD' in data:
-            globals()['DEFAULT_BAUD'] = str(data['DEFAULT_BAUD'])
-    except Exception:
-        pass
-
-
-_load_settings_from_disk()
-
-
-def _save_settings_to_disk(path=DEFAULT_CONFIG_FILE):
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        data = {
-            'CHECK_TIMEOUT': CHECK_TIMEOUT,
-            'DISCOVER_TIMEOUT': DISCOVER_TIMEOUT,
-            'CLI_DEFAULT_TIMEOUT': CLI_DEFAULT_TIMEOUT,
-            'DEFAULT_BAUD': DEFAULT_BAUD,
-        }
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-    except Exception:
-        pass
-
-
-def discover_devices():
-    entries = []
-    for path in sorted(glob.glob('/dev/ttyACM*') + glob.glob('/dev/ttyUSB*') + glob.glob('/dev/rfcomm*')):
-        entries.append((f'{path} (Serial)', path))
-    try:
-        out = subprocess.run(
-            ['bluetoothctl', 'devices', 'Paired'],
-            capture_output=True, text=True, timeout=DISCOVER_TIMEOUT,
-        ).stdout
-        for line in out.splitlines():
-            parts = line.strip().split(' ', 2)
-            if len(parts) >= 3 and parts[0] == 'Device':
-                mac, name = parts[1], parts[2]
-                entries.append((f'{name} ({mac}) [Bluetooth]', mac))
-    except (FileNotFoundError, subprocess.SubprocessError):
-        pass
-    return entries
+# Für direkten Zugriff als Modul-Konstanten (Kompatibilität)
+CHECK_TIMEOUT       = backend.CHECK_TIMEOUT
+DISCOVER_TIMEOUT    = backend.DISCOVER_TIMEOUT
+CLI_DEFAULT_TIMEOUT = backend.CLI_DEFAULT_TIMEOUT
+DEFAULT_BAUD        = backend.DEFAULT_BAUD
 
 
 def simple_input(parent, title: str, label: str) -> str:
@@ -205,7 +154,7 @@ class QuickSyncGUI(QMainWindow):
         btn_refresh.clicked.connect(self.refresh_devices_and_check)
         dev_row.addWidget(btn_refresh)
 
-        self.baud = QLineEdit(DEFAULT_BAUD)
+        self.baud = QLineEdit(backend.DEFAULT_BAUD)
         self.baud.setVisible(False)
         right_col.addWidget(dev_row_widget)
 
@@ -251,7 +200,7 @@ class QuickSyncGUI(QMainWindow):
         sb.addWidget(self._status_dot)
         sb.addWidget(self._status_label, 1)
 
-        self.refresh_devices(prefer=DEFAULT_DEVICE)
+        self.refresh_devices()
         QTimer.singleShot(100, self.check_device_connection)
 
     def _parse_and_fill_ui(self, action, text):
@@ -285,18 +234,21 @@ class QuickSyncGUI(QMainWindow):
         if anzahl: self.ui_kontakt_anzahl.setText(anzahl)
 
     def refresh_devices(self, prefer=None):
-        entries = discover_devices()
-        self._device_map = dict(entries)
+        # backend.discover_devices() gibt (mac, label) zurück
+        raw = backend.discover_devices()
+        # entries als (display_text, mac) für die ComboBox
+        entries = [(f'{label} ({mac}) [Bluetooth]', mac) for mac, label in raw]
+        self._device_map = {display: mac for display, mac in entries}
         self.device.blockSignals(True)
         self.device.clear()
-        for label, _ in entries:
-            self.device.addItem(label)
+        for display, _ in entries:
+            self.device.addItem(display)
         self.device.blockSignals(False)
 
         if prefer:
-            for label, value in entries:
-                if value == prefer:
-                    self.device.setCurrentText(label)
+            for display, mac in entries:
+                if mac == prefer:
+                    self.device.setCurrentText(display)
                     return
         if entries:
             self.device.setCurrentIndex(0)
@@ -407,7 +359,7 @@ class QuickSyncGUI(QMainWindow):
 
         def worker():
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=backend.CLI_DEFAULT_TIMEOUT)
                 if proc.returncode == 0:
                     if proc.stdout:
                         if action in ('info', 'obexinfo'):
@@ -478,17 +430,17 @@ class QuickSyncGUI(QMainWindow):
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
         from PySide6.QtWidgets import QSpinBox
-        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(CHECK_TIMEOUT); form.addRow('Verbindungs-Timeout (s):', chk)
-        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
-        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
+        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Verbindungs-Timeout (s):', chk)
+        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
+        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
         layout.addLayout(form)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() == QDialog.Accepted:
-            globals()['CHECK_TIMEOUT'] = chk.value()
-            globals()['DISCOVER_TIMEOUT'] = dsk.value()
-            globals()['CLI_DEFAULT_TIMEOUT'] = cli.value()
-            _save_settings_to_disk()
+            backend.CHECK_TIMEOUT = chk.value()
+            backend.DISCOVER_TIMEOUT = dsk.value()
+            backend.CLI_DEFAULT_TIMEOUT = cli.value()
+            backend.save_settings()
 
     def open_settings_baudrate(self):
         dlg = QDialog(self)
@@ -500,15 +452,15 @@ class QuickSyncGUI(QMainWindow):
         baud_combo.setEditable(True)
         for b in ['1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']:
             baud_combo.addItem(b)
-        baud_combo.setCurrentText(self.baud.text() or DEFAULT_BAUD)
+        baud_combo.setCurrentText(backend.DEFAULT_BAUD)
         form.addRow('Baudrate (Seriell):', baud_combo)
         layout.addLayout(form)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() == QDialog.Accepted:
-            globals()['DEFAULT_BAUD'] = baud_combo.currentText()
+            backend.DEFAULT_BAUD = baud_combo.currentText()
             self.baud.setText(baud_combo.currentText())
-            _save_settings_to_disk()
+            backend.save_settings()
 
     def open_file_manager(self):
         if not self.check_connection_or_warn():
@@ -531,19 +483,9 @@ class QuickSyncGUI(QMainWindow):
         self._contacts_win = ContactsWindow(self)
         self._contacts_win.finished.connect(lambda: setattr(self, '_contacts_win', None))
 
-    def _interpret_connection_error(self, text: str) -> str:
-        t = text.lower()
-        if 'host is down' in t or 'errno 112' in t:
-            return '✗ Gerät nicht erreichbar — Bitte Telefon entsperren und Bildschirm einschalten.'
-        if 'connection refused' in t or 'errno 111' in t:
-            return '✗ Verbindung abgelehnt — Bitte Bluetooth am Telefon aktivieren.'
-        if 'no route to host' in t or 'errno 113' in t:
-            return '✗ Gerät nicht gefunden — Bitte Bluetooth am Telefon aktivieren.'
-        if 'timed out' in t or 'timeout' in t:
-            return '✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.'
-        return None
 
-    def run_cli_sync(self, action, options=None, file=None, timeout=CLI_DEFAULT_TIMEOUT):
+
+    def run_cli_sync(self, action, options=None, file=None, timeout=backend.CLI_DEFAULT_TIMEOUT):
         if not self.current_device():
             raise RuntimeError('Kein Gerät ausgewählt.')
         cmd = self.build_cmd(action, options, file)
@@ -584,7 +526,7 @@ class QuickSyncGUI(QMainWindow):
                 dev = self.current_device()
                 if dev:
                     cmd_info = self.build_cmd('info')
-                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=CHECK_TIMEOUT)
+                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
                     if proc_info.returncode == 0:
                         status_text = f'{label} verbunden' if label else 'Gerät verbunden'
                         status_color = '#5cb85c'
@@ -596,7 +538,7 @@ class QuickSyncGUI(QMainWindow):
                             fd, vcf_path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_count_')
                             os.close(fd)
                             cmd_contacts = self.build_cmd('getcontacts', file=vcf_path)
-                            proc_contacts = subprocess.run(cmd_contacts, capture_output=True, text=True, timeout=CHECK_TIMEOUT)
+                            proc_contacts = subprocess.run(cmd_contacts, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
                             if proc_contacts.returncode == 0:
                                 with open(vcf_path, 'r', encoding='utf-8') as f_vcf:
                                     vcf_data = f_vcf.read()
@@ -609,7 +551,7 @@ class QuickSyncGUI(QMainWindow):
                         except Exception:
                             pass
             except Exception as e:
-                friendly = self._interpret_connection_error(str(e))
+                friendly = backend.interpret_connection_error(str(e))
                 if friendly:
                     sig.append_text.emit(friendly)
             sig.connection_state.emit(connected)
@@ -632,17 +574,17 @@ class QuickSyncGUI(QMainWindow):
                     result = 'Kein Gerät ausgewählt.'
                 else:
                     cmd_info = self.build_cmd('info')
-                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=CHECK_TIMEOUT)
+                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
                     if proc_info.returncode == 0:
                         result = f'✓ Gerät verbunden: {label or dev}'
                         connected = True
                         self._log_raw_output(proc_info.stdout)
                         sig.action_finished.emit('info', proc_info.stdout)
                     else:
-                        friendly = self._interpret_connection_error(proc_info.stderr)
+                        friendly = backend.interpret_connection_error(proc_info.stderr)
                         result = friendly or ('✗ Gerät nicht erreichbar\n' + proc_info.stderr)
             except Exception as e:
-                friendly = self._interpret_connection_error(str(e))
+                friendly = backend.interpret_connection_error(str(e))
                 result = friendly or f'✗ Fehler: {e}'
 
             status = ((f'{label} verbunden' if label else 'Gerät verbunden', '#5cb85c') if connected else ('Kein Gerät verbunden', '#d9534f'))

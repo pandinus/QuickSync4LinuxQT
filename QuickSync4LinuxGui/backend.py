@@ -26,7 +26,6 @@ import datetime as _dt
 
 def _setup_rotating_logger():
     os.makedirs(_CONFIG_DIR, exist_ok=True)
-    #os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
         DEFAULT_LOG_FILE,
         maxBytes=1 * 1024 * 1024,  # 1 MB
