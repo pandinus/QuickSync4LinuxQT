@@ -40,12 +40,10 @@ DISCOVER_TIMEOUT    = backend.DISCOVER_TIMEOUT
 CLI_DEFAULT_TIMEOUT = backend.CLI_DEFAULT_TIMEOUT
 DEFAULT_BAUD        = backend.DEFAULT_BAUD
 
-
 def simple_input(parent, title: str, label: str) -> str:
     from PySide6.QtWidgets import QInputDialog
     text, ok = QInputDialog.getText(parent, title, label)
     return text.strip() if ok else ''
-
 
 class _WorkerSignals(QObject):
     append_text = Signal(str)
@@ -54,7 +52,6 @@ class _WorkerSignals(QObject):
     action_finished = Signal(str, str)
     show_info = Signal(str, str)   # (title, text)
     clear_output = Signal()
-
 
 class QuickSyncGUI(QMainWindow):
     def __init__(self):
@@ -148,7 +145,7 @@ class QuickSyncGUI(QMainWindow):
         self.device = QComboBox()
         self.device.setEditable(True)
         self.device.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.device.currentIndexChanged.connect(lambda _: self.check_device_connection())
+        # Kein Auto-Connect bei Gerätewechsel — nur manuell über "Verbinden"
         dev_row.addWidget(self.device, stretch=1)
 
         btn_refresh = QPushButton('⟳')
@@ -203,7 +200,7 @@ class QuickSyncGUI(QMainWindow):
         sb.addWidget(self._status_label, 1)
 
         self.refresh_devices()
-        QTimer.singleShot(100, self.check_device_connection)
+        QTimer.singleShot(500, self.check_device_connection)
 
     def _parse_and_fill_ui(self, action, text):
         if not text:
@@ -252,6 +249,13 @@ class QuickSyncGUI(QMainWindow):
                 if mac == prefer:
                     self.device.setCurrentText(display)
                     return
+
+        # Gigaset-Gerät bevorzugen
+        for display, mac in entries:
+            if 'gigaset' in display.lower():
+                self.device.setCurrentText(display)
+                return
+
         if entries:
             self.device.setCurrentIndex(0)
         elif prefer:
@@ -484,8 +488,6 @@ class QuickSyncGUI(QMainWindow):
         self._contacts_win = ContactsWindow(self)
         self._contacts_win.finished.connect(lambda: setattr(self, '_contacts_win', None))
 
-
-
     def run_cli_sync(self, action, options=None, file=None, timeout=backend.CLI_DEFAULT_TIMEOUT):
         if not self.current_device():
             raise RuntimeError('Kein Gerät ausgewählt.')
@@ -552,9 +554,11 @@ class QuickSyncGUI(QMainWindow):
                         except Exception:
                             pass
             except Exception as e:
-                friendly = backend.interpret_connection_error(str(e))
-                if friendly:
-                    sig.append_text.emit(friendly)
+                friendly = backend.interpret_connection_error(str(e), dev)
+                msg = friendly or f'✗ Fehler: {e}'
+                sig.append_text.emit(msg)
+                status_text = msg
+                status_color = '#d9534f'
             sig.connection_state.emit(connected)
             sig.status_update.emit(status_text, status_color)
 
@@ -582,10 +586,10 @@ class QuickSyncGUI(QMainWindow):
                         self._log_raw_output(proc_info.stdout)
                         sig.action_finished.emit('info', proc_info.stdout)
                     else:
-                        friendly = backend.interpret_connection_error(proc_info.stderr)
+                        friendly = backend.interpret_connection_error(proc_info.stderr, dev)
                         result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {proc_info.stderr.strip()}'
             except Exception as e:
-                friendly = backend.interpret_connection_error(str(e))
+                friendly = backend.interpret_connection_error(str(e), dev)
                 result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {e}'
 
             status = ((f'{label} verbunden' if label else 'Gerät verbunden', '#5cb85c') if connected else ('Kein Gerät verbunden', '#d9534f'))
@@ -606,7 +610,6 @@ class QuickSyncGUI(QMainWindow):
         self._set_connection_state(False)
         self._update_status_bar('Kein Gerät verbunden', '#d9534f')
 
-
 # ─── Zusätzliche Fenster-Klassen ──────────────────────────────────────────────
 
 class _FileManagerSignals(QObject):
@@ -615,8 +618,6 @@ class _FileManagerSignals(QObject):
     do_reload    = Signal()
     show_preview = Signal(str)   # tmp_path
     show_preview_err = Signal(str)  # error text
-
-
 
 class FileManagerWindow(QDialog):
     """Dateimanager im KDE/Dolphin-Look mit fixiertem Gigaset-Parser."""
@@ -1031,7 +1032,6 @@ class FileManagerWindow(QDialog):
                 fm_sig.set_status.emit(f'✗ {e}')
         threading.Thread(target=worker, daemon=True).start()
 
-
 class ContactsWindow(QDialog):
     COLUMNS = [('name', 'Name', 200), ('cell', 'Mobil', 130), ('home', 'Privat', 130), ('work', 'Geschäftl.', 130), ('email', 'E-Mail', 200)]
 
@@ -1208,8 +1208,6 @@ class ContactsWindow(QDialog):
 
     def _on_close_request(self): self.close()
 
-
-
 class ContactEditor(QDialog):
     def __init__(self, parent, card, on_save):
         super().__init__(parent)
@@ -1248,7 +1246,6 @@ class ContactEditor(QDialog):
         self.on_save(self.card)
         self.accept()
 
-
 def simple_input(parent, title, prompt) -> str | None:
     dlg = QDialog(parent); dlg.setWindowTitle(title)
     l = QVBoxLayout(dlg); l.addWidget(QLabel(prompt)); e = QLineEdit(); l.addWidget(e)
@@ -1262,7 +1259,6 @@ def run():
     win = QuickSyncGUI()
     win.show()
     app.exec()
-
 
 if __name__ == '__main__':
     run()

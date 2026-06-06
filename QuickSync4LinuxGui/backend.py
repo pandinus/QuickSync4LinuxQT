@@ -92,11 +92,8 @@ def save_settings(path=DEFAULT_CONFIG_FILE):
 load_settings()
 
 # ─── Bluetooth-Geräteerkennung ────────────────────────────────────────────────
-# Bekannte Gigaset-Gerätekennzeichnungen
-GIGASET_KEYWORDS = ['gigaset', 's700', 's650', 's810', 'maxwell', 'sl450', 'cl660']
-
 def discover_devices() -> list[tuple[str, str]]:
-    """Gibt nur Gigaset-Geräte als Liste von (mac, label) via bluetoothctl zurück."""
+    """Gibt eine Liste von (mac, label) via bluetoothctl zurück."""
     devices = []
     try:
         out = subprocess.check_output(
@@ -105,10 +102,7 @@ def discover_devices() -> list[tuple[str, str]]:
         for line in out.splitlines():
             m = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+(.*)', line)
             if m:
-                mac   = m.group(1)
-                label = m.group(2).strip()
-                if any(kw in label.lower() for kw in GIGASET_KEYWORDS):
-                    devices.append((mac, label))
+                devices.append((m.group(1), m.group(2).strip()))
     except Exception:
         pass
     return devices
@@ -127,11 +121,33 @@ def build_cmd(action: str, device: str, baud: str = '',
         cmd += ['-f', file]
     return cmd
 
+# ─── Bluetooth-Verbindungsstatus prüfen ──────────────────────────────────────
+def check_bt_connected(mac: str) -> bool | None:
+    """Prüft ob ein Gerät per bluetoothctl aktiv verbunden ist.
+    Gibt True zurück wenn verbunden, False wenn nicht verbunden, None bei Fehler."""
+    try:
+        out = subprocess.check_output(
+            ['bluetoothctl', 'info', mac], text=True, timeout=5
+        )
+        for line in out.splitlines():
+            if 'Connected:' in line:
+                return 'yes' in line.lower()
+        return False
+    except Exception:
+        return None
+
 # ─── Verbindungsfehler interpretieren ─────────────────────────────────────────
-def interpret_connection_error(text: str) -> str | None:
+def interpret_connection_error(text: str, mac: str = '') -> str | None:
     t = text.lower()
     if 'host is down' in t or 'errno 112' in t:
-        return '✗ Gerät nicht erreichbar — Bitte Telefon entsperren und Bildschirm einschalten.'
+        # Prüfen ob Bluetooth-Verbindung besteht
+        if mac:
+            bt_connected = check_bt_connected(mac)
+            if bt_connected is False:
+                return '✗ Gerät nicht verbunden — Bitte Bluetooth am Telefon aktivieren.'
+            elif bt_connected is True:
+                return '✗ Gerät nicht erreichbar — Bitte Bildschirm einschalten und Telefon entsperren.'
+        return '✗ Gerät nicht erreichbar — Bitte Bluetooth am Telefon aktivieren und Bildschirm einschalten.'
     if 'connection refused' in t or 'errno 111' in t:
         return '✗ Verbindung abgelehnt — Bitte Bluetooth am Telefon aktivieren.'
     if 'no route to host' in t or 'errno 113' in t:
