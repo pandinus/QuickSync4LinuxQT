@@ -92,8 +92,21 @@ def save_settings(path=DEFAULT_CONFIG_FILE):
 load_settings()
 
 # ─── Bluetooth-Geräteerkennung ────────────────────────────────────────────────
+def _get_bt_device_class(mac: str) -> str:
+    """Gibt die Geräteklasse eines Bluetooth-Geräts zurück (z.B. 'phone', 'audio')."""
+    try:
+        out = subprocess.check_output(
+            ['bluetoothctl', 'info', mac], text=True, timeout=5
+        )
+        for line in out.splitlines():
+            if 'Icon:' in line:
+                return line.split(':', 1)[1].strip().lower()
+    except Exception:
+        pass
+    return ''
+
 def discover_devices() -> list[tuple[str, str]]:
-    """Gibt eine Liste von (mac, label) via bluetoothctl zurück."""
+    """Gibt eine Liste von (mac, label) für Phone-Geräte via bluetoothctl zurück."""
     devices = []
     try:
         out = subprocess.check_output(
@@ -102,7 +115,10 @@ def discover_devices() -> list[tuple[str, str]]:
         for line in out.splitlines():
             m = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+(.*)', line)
             if m:
-                devices.append((m.group(1), m.group(2).strip()))
+                mac, label = m.group(1), m.group(2).strip()
+                device_class = _get_bt_device_class(mac)
+                if 'phone' in device_class:
+                    devices.append((mac, label))
     except Exception:
         pass
     return devices

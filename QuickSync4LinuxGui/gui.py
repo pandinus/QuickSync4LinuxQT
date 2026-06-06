@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QMessageBox, QFileDialog,
     QFormLayout, QSizePolicy, QStatusBar, QAbstractItemView, QStyle,
     QTableWidget, QTableWidgetItem, QHeaderView, QListWidget,
-    QListWidgetItem, QSplitter, QSpinBox,
+    QListWidgetItem, QSplitter, QSpinBox, QRadioButton, QButtonGroup,
 )
 from PySide6.QtGui import QFont, QPixmap, QColor
 from PySide6.QtCore import Qt, Signal, QObject, QTimer
@@ -137,15 +137,27 @@ class QuickSyncGUI(QMainWindow):
         right_col.setSpacing(6)
         right_col.setContentsMargins(0, 0, 0, 0)
 
+        # Verbindungsart-Auswahl
+        conn_type_row = QHBoxLayout()
+        self._conn_type_group = QButtonGroup(self)
+        self._rb_bt = QRadioButton('Bluetooth')
+        self._rb_serial = QRadioButton('Seriell')
+        self._rb_bt.setChecked(True)
+        self._conn_type_group.addButton(self._rb_bt)
+        self._conn_type_group.addButton(self._rb_serial)
+        conn_type_row.addWidget(self._rb_bt)
+        conn_type_row.addWidget(self._rb_serial)
+        conn_type_row.addStretch()
+        right_col.addLayout(conn_type_row)
+
         dev_row_widget = QWidget()
         dev_row_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         dev_row = QHBoxLayout(dev_row_widget)
         dev_row.setContentsMargins(0, 0, 0, 0)
         dev_row.setSpacing(4)
         self.device = QComboBox()
-        self.device.setEditable(True)
+        self.device.setEditable(False)
         self.device.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        # Kein Auto-Connect bei Gerätewechsel — nur manuell über "Verbinden"
         dev_row.addWidget(self.device, stretch=1)
 
         btn_refresh = QPushButton('⟳')
@@ -156,6 +168,10 @@ class QuickSyncGUI(QMainWindow):
         self.baud = QLineEdit(backend.DEFAULT_BAUD)
         self.baud.setVisible(False)
         right_col.addWidget(dev_row_widget)
+
+        # Verbindungsart wechseln
+        self._rb_bt.toggled.connect(self._on_conn_type_changed)
+        self._rb_serial.toggled.connect(self._on_conn_type_changed)
 
         form_layout = QFormLayout()
         form_layout.setSpacing(6)
@@ -232,34 +248,63 @@ class QuickSyncGUI(QMainWindow):
         if seriennummer: self.ui_seriennummer.setText(seriennummer)
         if anzahl: self.ui_kontakt_anzahl.setText(anzahl)
 
+    def _on_conn_type_changed(self):
+        """Wechselt zwischen Bluetooth- und Seriell-Modus."""
+        if self._rb_bt.isChecked():
+            self.device.setEditable(False)
+        else:
+            self.device.setEditable(True)
+        self.refresh_devices()
+
     def refresh_devices(self, prefer=None):
-        # backend.discover_devices() gibt (mac, label) zurück
-        raw = backend.discover_devices()
-        # entries als (display_text, mac) für die ComboBox
-        entries = [(f'{label} ({mac}) [Bluetooth]', mac) for mac, label in raw]
-        self._device_map = {display: mac for display, mac in entries}
         self.device.blockSignals(True)
         self.device.clear()
-        for display, _ in entries:
-            self.device.addItem(display)
-        self.device.blockSignals(False)
 
-        if prefer:
+        if self._rb_serial.isChecked():
+            # Serielle Geräte anzeigen
+            import glob
+            serial_ports = sorted(
+                glob.glob('/dev/ttyACM*') +
+                glob.glob('/dev/ttyUSB*') +
+                glob.glob('/dev/rfcomm*')
+            )
+            self._device_map = {p: p for p in serial_ports}
+            for p in serial_ports:
+                self.device.addItem(p)
+            self.device.setEditable(True)
+            if prefer and prefer in serial_ports:
+                self.device.setCurrentText(prefer)
+            elif serial_ports:
+                self.device.setCurrentIndex(0)
+        else:
+            # Bluetooth-Geräte anzeigen
+            raw = backend.discover_devices()
+            entries = [(f'{label} ({mac}) [Bluetooth]', mac) for mac, label in raw]
+            self._device_map = {display: mac for display, mac in entries}
+            for display, _ in entries:
+                self.device.addItem(display)
+            self.device.setEditable(False)
+
+            if prefer:
+                for display, mac in entries:
+                    if mac == prefer:
+                        self.device.setCurrentText(display)
+                        self.device.blockSignals(False)
+                        return
+
+            # Gigaset-Gerät bevorzugen
             for display, mac in entries:
-                if mac == prefer:
+                if 'gigaset' in display.lower():
                     self.device.setCurrentText(display)
+                    self.device.blockSignals(False)
                     return
 
-        # Gigaset-Gerät bevorzugen
-        for display, mac in entries:
-            if 'gigaset' in display.lower():
-                self.device.setCurrentText(display)
-                return
+            if entries:
+                self.device.setCurrentIndex(0)
+            elif prefer:
+                self.device.setCurrentText(prefer)
 
-        if entries:
-            self.device.setCurrentIndex(0)
-        elif prefer:
-            self.device.setCurrentText(prefer)
+        self.device.blockSignals(False)
 
     def refresh_devices_and_check(self):
         self.refresh_devices()
