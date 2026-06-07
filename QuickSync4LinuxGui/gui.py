@@ -1035,7 +1035,7 @@ class FileManagerWindow(QDialog):
         threading.Thread(target=worker, daemon=True).start()
 
     def upload_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, 'Datei zum Hochladen wählen')
+        path, _ = QFileDialog.getOpenFileName(self, 'Datei zum Hochladen wählen', os.path.expanduser('~'))
         if not path:
             return
         self.status_label.setText(f'⏳ Upload: {os.path.basename(path)} …')
