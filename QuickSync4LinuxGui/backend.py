@@ -122,20 +122,6 @@ def discover_devices() -> list[tuple[str, str]]:
         pass
     return devices
 
-# ─── Befehle für die CLI-Schnittstelle vorbereiten ────────────────────────────
-def build_cmd(action: str, device: str, baud: str = '',
-              options: str = '', file: str = '') -> list[str]:
-    cmd = ['python3', '-m', 'QuickSync4LinuxGui', action]
-    if device:
-        cmd += ['-d', device]
-    if baud and not BT_MAC_RE.match(device or ''):
-        cmd += ['-b', baud]
-    if options:
-        cmd += [options]
-    if file:
-        cmd += ['-f', file]
-    return cmd
-
 # ─── Bluetooth-Verbindungsstatus prüfen ──────────────────────────────────────
 def check_bt_connected(mac: str) -> bool | None:
     """Checks if a device is actively connected via bluetoothctl.

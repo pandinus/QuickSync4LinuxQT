@@ -21,6 +21,7 @@ from PySide6.QtCore import Qt, Signal, QObject, QTimer
 
 from . import vcard
 from . import btserial
+from . import quicksync
 
 from . import backend
 
@@ -111,19 +112,19 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.addWidget(sb_btn('Obex Info',   QStyle.SP_MessageBoxInformation, lambda: self.run_action('obexinfo')))
         
         sb_group('Contacts')
-        sidebar_layout.addWidget(sb_btn('Manage',   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
+        sidebar_layout.addWidget(sb_btn('Manage Contacts',   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
         sidebar_layout.addWidget(sb_btn('Export', QStyle.SP_ArrowDown,              self.get_contacts))
         sidebar_layout.addWidget(sb_btn('Import', QStyle.SP_ArrowUp,               lambda: self.choose_file_and_run('createcontacts')))
 
         sb_group('Files')
-        sidebar_layout.addWidget(sb_btn('File Manager', QStyle.SP_DirOpenIcon, self.open_file_manager))
+        sidebar_layout.addWidget(sb_btn('Filemanager', QStyle.SP_DirOpenIcon, self.open_file_manager))
 
         sb_group('Settings')
         sidebar_layout.addWidget(sb_btn('Timeouts', QStyle.SP_DialogHelpButton, self.open_settings_timeouts))
-        sidebar_layout.addWidget(sb_btn('Baud Rate', QStyle.SP_DialogHelpButton, self.open_settings_baudrate))
+        sidebar_layout.addWidget(sb_btn('Baudrate', QStyle.SP_DialogHelpButton, self.open_settings_baudrate))
 
         sb_group('Log / Console')
-        sidebar_layout.addWidget(sb_btn('Open Log', QStyle.SP_FileIcon, self.open_log))
+        sidebar_layout.addWidget(sb_btn('open Log', QStyle.SP_FileIcon, self.open_log))
 
         sidebar_layout.addStretch()
         content_row.addWidget(sidebar)
@@ -141,7 +142,7 @@ class QuickSyncGUI(QMainWindow):
         conn_type_row = QHBoxLayout()
         self._conn_type_group = QButtonGroup(self)
         self._rb_bt = QRadioButton('Bluetooth')
-        self._rb_serial = QRadioButton('Serial')
+        self._rb_serial = QRadioButton('Seriell')
         self._rb_bt.setChecked(True)
         self._conn_type_group.addButton(self._rb_bt)
         self._conn_type_group.addButton(self._rb_serial)
@@ -176,20 +177,20 @@ class QuickSyncGUI(QMainWindow):
         form_layout = QFormLayout()
         form_layout.setSpacing(6)
 
-        self.ui_hersteller = QLineEdit("-"); self.ui_hersteller.setReadOnly(True)
-        self.ui_modell = QLineEdit("-"); self.ui_modell.setReadOnly(True)
+        self.ui_manufacturer = QLineEdit("-"); self.ui_manufacturer.setReadOnly(True)
+        self.ui_model = QLineEdit("-"); self.ui_model.setReadOnly(True)
         self.ui_mac = QLineEdit("-"); self.ui_mac.setReadOnly(True)
         self.ui_firmware = QLineEdit("-"); self.ui_firmware.setReadOnly(True)
-        self.ui_seriennummer = QLineEdit("-"); self.ui_seriennummer.setReadOnly(True)
-        self.ui_kontakt_anzahl = QLineEdit("-"); self.ui_kontakt_anzahl.setReadOnly(True)
+        self.ui_serial = QLineEdit("-"); self.ui_serial.setReadOnly(True)
+        self.ui_contact_count = QLineEdit("-"); self.ui_contact_count.setReadOnly(True)
 
-        form_layout.addRow("<b>Device Information</b>", QLabel(""))
-        form_layout.addRow("Hersteller:", self.ui_hersteller)
-        form_layout.addRow("Modell / Produkt:", self.ui_modell)
-        form_layout.addRow("MAC-Adresse:", self.ui_mac)
-        form_layout.addRow("Firmware-Version:", self.ui_firmware)
-        form_layout.addRow("Seriennummer (IPUI):", self.ui_seriennummer)
-        form_layout.addRow("Contact Count:", self.ui_kontakt_anzahl)
+        form_layout.addRow("<b>Geräteinformationen</b>", QLabel(""))
+        form_layout.addRow("Manufacturer:", self.ui_manufacturer)
+        form_layout.addRow("Model / Product:", self.ui_model)
+        form_layout.addRow("MAC Address:", self.ui_mac)
+        form_layout.addRow("Firmware Version:", self.ui_firmware)
+        form_layout.addRow("Serial Number (IPUI):", self.ui_serial)
+        form_layout.addRow("Contact Count:", self.ui_contact_count)
         right_col.addLayout(form_layout)
 
         line = QFrame()
@@ -211,7 +212,7 @@ class QuickSyncGUI(QMainWindow):
         self.setStatusBar(sb)
         self._status_dot = QLabel('●')
         self._status_dot.setStyleSheet('color: gray;')
-        self._status_label = QLabel('Checking device status…')
+        self._status_label = QLabel('Gerät-Status wird überprüft…')
         sb.addWidget(self._status_dot)
         sb.addWidget(self._status_label, 1)
 
@@ -223,7 +224,7 @@ class QuickSyncGUI(QMainWindow):
             return
 
         if action == 'contact_count':
-            self.ui_kontakt_anzahl.setText(text)
+            self.ui_contact_count.setText(text)
             return
 
         def find_val(pattern, string):
@@ -241,12 +242,12 @@ class QuickSyncGUI(QMainWindow):
         seriennummer = find_val(r'(?:Seriennummer|Serial(?:\s*\(IPUI\))?)\s*:\s*(.*)', text)
         anzahl = find_val(r'(?:Received|Found|Total)\s*([0-9]+)\s*(?:contacts|Kontakte)', text)
 
-        if hersteller: self.ui_hersteller.setText(hersteller)
-        if modell: self.ui_modell.setText(modell.split(',')[-1].strip() if ',' in modell else modell)
+        if hersteller: self.ui_manufacturer.setText(hersteller)
+        if modell: self.ui_model.setText(modell.split(',')[-1].strip() if ',' in modell else modell)
         if mac: self.ui_mac.setText(mac)
         if firmware: self.ui_firmware.setText(firmware)
-        if seriennummer: self.ui_seriennummer.setText(seriennummer)
-        if anzahl: self.ui_kontakt_anzahl.setText(anzahl)
+        if seriennummer: self.ui_serial.setText(seriennummer)
+        if anzahl: self.ui_contact_count.setText(anzahl)
 
     def _on_conn_type_changed(self):
         """Wechselt zwischen Bluetooth- und Seriell-Modus."""
@@ -323,25 +324,20 @@ class QuickSyncGUI(QMainWindow):
 
     def check_connection_or_warn(self) -> bool:
         if not self.current_device():
-            QMessageBox.warning(self, 'No Device', 'Please select a device first.')
+            QMessageBox.warning(self, 'No Device', 'Please choose a device from the dropdown first.')
             return False
         if self._device_connected is not True:
-            QMessageBox.warning(self, 'Not Connected', 'Please connect to a device first.')
+            QMessageBox.warning(self, 'No connection', 'Please connect to a device first.')
             return False
         return True
 
-    def build_cmd(self, action, options=None, file=None):
-        cmd = ['python3', '-m', 'QuickSync4LinuxGui', action]
-        if options:
-            cmd.append(options)
+    def _open_connection(self):
+        """Open a direct connection to the current device."""
         dev = self.current_device()
-        if dev:
-            cmd += ['-d', dev]
-        if self.baud.text() and not BT_MAC_RE.match(dev or ''):
-            cmd += ['-b', self.baud.text()]
-        if file:
-            cmd += ['-f', file]
-        return cmd
+        if not dev:
+            raise RuntimeError('No device selected.')
+        baud = int(self.baud.text()) if self.baud.text() else 9600
+        return quicksync.open_connection(dev, baud)
 
     def _set_connection_state(self, connected: bool):
         self._device_connected = connected
@@ -394,54 +390,64 @@ class QuickSyncGUI(QMainWindow):
                 'The device is currently disconnected. Please reconnect.')
             return
 
-        cmd = self.build_cmd(action, options, file)
         self.output.clear()
-
-        if action == 'info':
-            msg = 'Retrieving info...'
-        elif action == 'obexinfo':
-            msg = 'Retrieving OBEX info...'
-        elif action == 'getcontacts':
-            msg = 'Opening contact manager...'
-        else:
-            msg = f"Running: {' '.join(cmd)}"
-        self._append_output(msg)
         sig = self._signals
 
         def worker():
+            ser = None
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=backend.CLI_DEFAULT_TIMEOUT)
-                if proc.returncode == 0:
-                    if proc.stdout:
-                        if action in ('info', 'obexinfo'):
-                            title = 'Device Info' if action == 'info' else 'Obex Info'
-                            sig.show_info.emit(title, proc.stdout)
-                            sig.clear_output.emit()
-                            sig.append_text.emit('clear')
-                        else:
-                            sig.append_text.emit(proc.stdout)
-                        sig.action_finished.emit(action, proc.stdout)
+                ser = self._open_connection()
+                if action == 'info':
+                    result = quicksync.get_info(ser)
+                    sig.show_info.emit('Device Info', result)
+                    sig.clear_output.emit()
+                    sig.action_finished.emit('info', result)
+                elif action == 'obexinfo':
+                    result = quicksync.get_obex_info(ser)
+                    sig.show_info.emit('Obex Info', result)
+                    sig.clear_output.emit()
+                    sig.action_finished.emit('obexinfo', result)
+                elif action == 'getcontacts':
+                    if file:
+                        vcf = quicksync.get_contacts(ser)
+                        with open(file, 'wb') as f:
+                            f.write(vcf)
+                        sig.action_finished.emit('getcontacts', vcf.decode('utf-8', errors='replace'))
+                elif action in ('setcontacts', 'createcontacts'):
+                    if file:
+                        with open(file, 'rb') as f:
+                            vcf = f.read()
+                        quicksync.set_contacts(ser, vcf)
+                elif action == 'download':
+                    if options and file:
+                        quicksync.download_file(ser, options, file)
+                elif action == 'upload':
+                    if options and file:
+                        quicksync.upload_file(ser, options, file)
+                elif action == 'delete':
+                    if options:
+                        quicksync.delete_file(ser, options)
                 else:
-                    if proc.stdout:
-                        sig.append_text.emit(proc.stdout)
-                    if proc.stderr:
-                        sig.append_text.emit('ERROR:\n' + proc.stderr)
+                    sig.append_text.emit(f'Unknown action: {action}')
             except Exception as e:
-                sig.append_text.emit(f'Exception: {e}')
+                sig.append_text.emit(f'✗ Error: {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
 
         threading.Thread(target=worker, daemon=True).start()
 
     def choose_file_and_run(self, action):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getOpenFileName(self, 'Choose VCF file', os.path.expanduser('~'), 'VCF files (*.vcf);;All files (*)')
+        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
         if path:
             self.run_action(action, None, path)
 
     def get_contacts(self):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getSaveFileName(self, 'Save contacts as', os.path.expanduser('~'), 'VCF files (*.vcf);;All files (*)')
+        path, _ = QFileDialog.getSaveFileName(self, 'Kontakte speichern als', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
         if path:
             self.run_action('getcontacts', None, path)
 
@@ -481,9 +487,9 @@ class QuickSyncGUI(QMainWindow):
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
         from PySide6.QtWidgets import QSpinBox
-        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Connection timeout (s):', chk)
-        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow('Bluetooth timeout (s):', dsk)
-        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow('CLI timeout (s):', cli)
+        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Connection Timeout (s):', chk)
+        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
+        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
         layout.addLayout(form)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
@@ -504,7 +510,7 @@ class QuickSyncGUI(QMainWindow):
         for b in ['1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']:
             baud_combo.addItem(b)
         baud_combo.setCurrentText(backend.DEFAULT_BAUD)
-        form.addRow('Baud rate (Serial):', baud_combo)
+        form.addRow('Baudrate (Seriell):', baud_combo)
         layout.addLayout(form)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
@@ -533,77 +539,61 @@ class QuickSyncGUI(QMainWindow):
         self._contacts_win = ContactsWindow(self)
         self._contacts_win.finished.connect(lambda: setattr(self, '_contacts_win', None))
 
-    def run_cli_sync(self, action, options=None, file=None, timeout=backend.CLI_DEFAULT_TIMEOUT):
-        if not self.current_device():
-            raise RuntimeError('No device selected.')
-        cmd = self.build_cmd(action, options, file)
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        if proc.stdout: self._log_raw_output(proc.stdout)
-        if proc.stderr: self._log_raw_output('ERROR:\n' + proc.stderr)
-        if proc.returncode != 0:
-            raise RuntimeError(f'{action} fehlgeschlagen (exit {proc.returncode})')
-        return proc
+
 
     def download_file(self):
-        remote = simple_input(self, 'Remote file', 'Enter remote file name:')
+        remote = simple_input(self, 'Remote file', 'Remote-Dateiname eingeben:')
         if not remote: return
-        out, _ = QFileDialog.getSaveFileName(self, 'Save as')
+        out, _ = QFileDialog.getSaveFileName(self, 'Speichern als')
         if out: self.run_action('download', remote, out)
 
     def upload_file(self):
-        path, _ = QFileDialog.getOpenFileName(self,  'Choose file to upload')
+        path, _ = QFileDialog.getOpenFileName(self,  'Datei zum Hochladen wählen')
         if not path: return
-        remote = simple_input(self, 'Remote-Name', 'Remote file name on device:')
+        remote = simple_input(self, 'Remote-Name', 'Remote-Dateiname auf dem Gerät:')
         if not remote: return
         self.run_action('upload', remote, path)
 
     def delete_file(self):
-        remote = simple_input(self, 'Remote file', 'Remote file name to delete:')
+        remote = simple_input(self, 'Remote file', 'Remote-Dateiname zum Löschen:')
         if remote: self.run_action('delete', remote)
 
     def check_device_connection(self):
         label = self.current_device_label()
-        self._update_status_bar(f'{label}: Checking status …' if label else 'Checking connection …', '#888888')
+        self._update_status_bar(f'{label}: Status prüfen …' if label else 'Verbindung wird geprüft …', '#888888')
         sig = self._signals
 
         def worker():
             connected = False
             status_text = 'No device connected'
             status_color = '#d9534f'
+            ser = None
+            dev = self.current_device()
             try:
-                dev = self.current_device()
                 if dev:
-                    cmd_info = self.build_cmd('info')
-                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
-                    if proc_info.returncode == 0:
-                        status_text = f'{label} connected' if label else 'Device connected'
-                        status_color = '#5cb85c'
-                        connected = True
-                        sig.append_text.emit(f'✓ {status_text}')
-                        self._log_raw_output(proc_info.stdout)
-                        sig.action_finished.emit('info', proc_info.stdout)
-                        try:
-                            fd, vcf_path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_count_')
-                            os.close(fd)
-                            cmd_contacts = self.build_cmd('getcontacts', file=vcf_path)
-                            proc_contacts = subprocess.run(cmd_contacts, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
-                            if proc_contacts.returncode == 0:
-                                with open(vcf_path, 'r', encoding='utf-8') as f_vcf:
-                                    vcf_data = f_vcf.read()
-                                count = len(vcard.parseCards(vcf_data))
-                                sig.action_finished.emit('contact_count', str(count))
-                            try:
-                                os.unlink(vcf_path)
-                            except OSError:
-                                pass
-                        except Exception:
-                            pass
+                    ser = self._open_connection()
+                    info_text = quicksync.get_info(ser)
+                    status_text = f'{label} connected' if label else 'Device connected'
+                    status_color = '#5cb85c'
+                    connected = True
+                    sig.append_text.emit(f'✓ {status_text}')
+                    self._log_raw_output(info_text)
+                    sig.action_finished.emit('info', info_text)
+                    try:
+                        vcf_bytes = quicksync.get_contacts(ser)
+                        count = len(vcard.parseCards(vcf_bytes.decode('utf-8', errors='replace')))
+                        sig.action_finished.emit('contact_count', str(count))
+                    except Exception:
+                        pass
             except Exception as e:
                 friendly = backend.interpret_connection_error(str(e), dev)
                 msg = friendly or f'✗ Error: {e}'
                 sig.append_text.emit(msg)
                 status_text = msg
                 status_color = '#d9534f'
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
             sig.connection_state.emit(connected)
             sig.status_update.emit(status_text, status_color)
 
@@ -611,31 +601,32 @@ class QuickSyncGUI(QMainWindow):
 
     def test_connection(self):
         self.output.clear()
-        self._append_output('--- Establishing connection ---')
+        self._append_output('--- Verbindung wird hergestellt ---')
         label = self.current_device_label()
         self._update_status_bar(f'{label}: Verbinde …', '#888888')
         sig = self._signals
 
         def worker():
             connected = False
+            result = ''
+            ser = None
+            dev = self.current_device()
             try:
-                dev = self.current_device()
                 if not dev:
                     result = 'No device selected.'
                 else:
-                    cmd_info = self.build_cmd('info')
-                    proc_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=backend.CHECK_TIMEOUT)
-                    if proc_info.returncode == 0:
-                        result = f'✓ Device connected: {label or dev}'
-                        connected = True
-                        self._log_raw_output(proc_info.stdout)
-                        sig.action_finished.emit('info', proc_info.stdout)
-                    else:
-                        friendly = backend.interpret_connection_error(proc_info.stderr, dev)
-                        result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {proc_info.stderr.strip()}'
+                    ser = self._open_connection()
+                    info_text = quicksync.get_info(ser)
+                    result = f'✓ Device connected: {label or dev}'
+                    connected = True
+                    self._log_raw_output(info_text)
+                    sig.action_finished.emit('info', info_text)
             except Exception as e:
                 friendly = backend.interpret_connection_error(str(e), dev)
-                result = friendly or f'✗ Verbindung zu {label} ({dev}) fehlgeschlagen: {e}'
+                result = friendly or f'✗ Connection to {label} ({dev}) failed: {e}'
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
 
             status = ((f'{label} connected' if label else 'Device connected', '#5cb85c') if connected else ('No device connected', '#d9534f'))
             sig.connection_state.emit(connected)
@@ -651,9 +642,9 @@ class QuickSyncGUI(QMainWindow):
             try: subprocess.run(['bluetoothctl', 'disconnect', dev.split('@')[0]], capture_output=True, timeout=5)
             except Exception: pass
         self.output.clear()
-        self._append_output(f'✓ Disconnected from {label}')
+        self._append_output(f'✓ Verbindung zu {label} getrennt')
         self._set_connection_state(False)
-        self._update_status_bar('No device connected', '#d9534f')
+        self._update_status_bar('Kein Gerät verbunden', '#d9534f')
 
 # ─── Zusätzliche Fenster-Klassen ──────────────────────────────────────────────
 
@@ -701,7 +692,7 @@ class FileManagerWindow(QDialog):
         btn_reload = tbtn('Aktualisieren', QStyle.SP_BrowserReload, self.reload)
         btn_download = tbtn('Herunterladen', QStyle.SP_ArrowDown, self.download_selected)
         btn_upload = tbtn('Hochladen', QStyle.SP_ArrowUp, self.upload_file)
-        btn_delete = tbtn('Delete', QStyle.SP_TrashIcon, self.delete_selected, is_danger=True)
+        btn_delete = tbtn('Löschen', QStyle.SP_TrashIcon, self.delete_selected, is_danger=True)
         
         toolbar.addWidget(btn_reload)
         toolbar.addWidget(btn_download)
@@ -736,7 +727,7 @@ class FileManagerWindow(QDialog):
 
         # Mitte: Die Dateitabelle
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(['Name', 'Date', 'Size'])
+        self.table.setHorizontalHeaderLabels(['Name', 'Datum', 'Größe'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
@@ -763,7 +754,7 @@ class FileManagerWindow(QDialog):
         preview_layout = QVBoxLayout(preview_panel)
         preview_layout.setContentsMargins(4, 0, 4, 0)
 
-        self.preview_label = QLabel('No selection')
+        self.preview_label = QLabel('Keine Auswahl')
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setStyleSheet('font-weight: bold; color: palette(window-text);')
         
@@ -814,7 +805,7 @@ class FileManagerWindow(QDialog):
         QTimer.singleShot(50, self.reload)
 
     def reload(self):
-        self.status_label.setText('Loading file list …')
+        self.status_label.setText('Lade Dateiliste …')
         self.space_label.setText('')
         self.table.setRowCount(0)
         self.folder_sidebar.clear()
@@ -824,62 +815,37 @@ class FileManagerWindow(QDialog):
         fm_sig = self._fm_signals
 
         def worker():
+            ser = None
+            log = self.parent_win._signals
             try:
-                cmd = self.parent_win.build_cmd('listfiles')
-                log = self.parent_win._signals
                 log.append_text.emit('Loading file list …')
-                fm_sig.set_status.emit('Loading file list … (CLI running)')
-
-                try:
-                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
-                except subprocess.TimeoutExpired:
-                    log.append_text.emit(f"[FileManager] ✗ Timeout nach {CLI_DEFAULT_TIMEOUT}s")
-                    fm_sig.set_status.emit(f'✗ Timeout ({CLI_DEFAULT_TIMEOUT}s exceeded)')
-                    return
-
-                output = proc.stdout or ''
-                stderr = proc.stderr or ''
-
-                if stderr:
-                    log.append_text.emit(f"[FileManager] stderr: {stderr[:300]}")
-
-                if not output and proc.returncode != 0:
-                    error_msg = f"✗ CLI Fehler (Code {proc.returncode}): {stderr[:200] or 'kein Fehlertext'}"
-                    log.append_text.emit(f"[FileManager] {error_msg}")
-                    fm_sig.set_status.emit(error_msg)
-                    return
+                fm_sig.set_status.emit('Loading file list …')
+                ser = self.parent_win._open_connection()
+                output = quicksync.list_files(ser)
 
                 try:
                     files = self._parse_listfiles(output)
                 except Exception as parse_exc:
-                    import traceback
-                    log.append_text.emit(f"[FileManager] Parse-Fehler:\n{traceback.format_exc()}")
-                    fm_sig.set_status.emit(f'✗ Parse-Fehler: {parse_exc}')
+                    fm_sig.set_status.emit(f'✗ Parse error: {parse_exc}')
                     return
 
                 import re as _re
                 total = _re.search(r'Total Space:\s*([\d\.]+\s*\w+)', output, _re.IGNORECASE)
-                free  = _re.search(r'Free Space:\s*([\d\.]+\s*\w+)', output, _re.IGNORECASE)
-                space_text = ''
-                if total and free:
-                    space_text = f'Frei: {free.group(1)}  |  Gesamt: {total.group(1)}'
+                free  = _re.search(r'Free Space:\s*([\d\.]+\s*\w+)',  output, _re.IGNORECASE)
+                space_text = f'Free: {free.group(1)}  |  Total: {total.group(1)}' if total and free else ''
 
                 if not files:
-                    msg = "✗ No files processed. Check raw data in console tab."
-                    log.append_text.emit(f"[FileManager] {msg}")
-                    fm_sig.set_status.emit(msg)
+                    fm_sig.set_status.emit('✗ No files found.')
                     return
 
-                log.append_text.emit(f'✓ Dateiliste geladen: {len(files)} Dateien in {len(set(f["folder"] for f in files))} Ordner')
+                log.append_text.emit(f'✓ File list loaded: {len(files)} file(s) in {len(set(f["folder"] for f in files))} folder(s)')
                 fm_sig.setup_ui.emit(files, space_text)
             except Exception as e:
-                import traceback
-                tb = traceback.format_exc()
-                try:
-                    self.parent_win._signals.append_text.emit(f"[FileManager] Exception:\n{tb}")
-                except Exception:
-                    pass
+                log.append_text.emit(f'[FileManager] Error: {e}')
                 fm_sig.set_status.emit(f'✗ Error: {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
     def _parse_listfiles(self, text):
@@ -972,12 +938,12 @@ class FileManagerWindow(QDialog):
         f = self._selected_file()
         if not f:
             self.preview_image.clear()
-            self.preview_label.setText('No selection')
+            self.preview_label.setText('Keine Auswahl')
             self.preview_info.clear()
             return
         ext = os.path.splitext(f['name'])[1].lower()
         self.preview_label.setText(f['name'])
-        self.preview_info.setText(f"<b>ID:</b> {f['id']}<br><b>Path:</b> {f['folder']}/{f['name']}<br><b>Size:</b> {f['size']}<br><b>Date:</b> {f['date']}")
+        self.preview_info.setText(f"<b>ID:</b> {f['id']}<br><b>Pfad:</b> {f['folder']}/{f['name']}<br><b>Größe:</b> {f['size']}<br><b>Datum:</b> {f['date']}")
         if ext in self.IMAGE_EXTS:
             self.preview_image.setText('⏳ Lade Bild …')
             self._load_preview(f)
@@ -987,18 +953,22 @@ class FileManagerWindow(QDialog):
     def _load_preview(self, f):
         fm_sig = self._fm_signals
         def worker():
+            ser = None
             try:
                 fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(f['name'])[1])
                 os.close(fd)
                 remote_path = f"{f['folder']}/{f['name']}"
-                cmd = self.parent_win.build_cmd('download', options=remote_path, file=tmp_path)
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                if proc.returncode == 0 and os.path.exists(tmp_path):
+                ser = self.parent_win._open_connection()
+                quicksync.download_file(ser, remote_path, tmp_path)
+                if os.path.exists(tmp_path):
                     fm_sig.show_preview.emit(tmp_path)
                 else:
                     fm_sig.show_preview_err.emit('✗ Preview not available')
             except Exception as e:
                 fm_sig.show_preview_err.emit(f'✗ {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
     def _show_preview(self, path):
@@ -1024,14 +994,17 @@ class FileManagerWindow(QDialog):
         self.status_label.setText(f'⏳ Downloading: {f["name"]} …')
         fm_sig = self._fm_signals
         def worker():
+            ser = None
             try:
                 remote_path = f"{f['folder']}/{f['name']}"
-                cmd = self.parent_win.build_cmd('download', options=remote_path, file=save_path)
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
-                msg = f'✓ Saved: {save_path}' if proc.returncode == 0 else '✗ Download failed'
-                fm_sig.set_status.emit(msg)
+                ser = self.parent_win._open_connection()
+                quicksync.download_file(ser, remote_path, save_path)
+                fm_sig.set_status.emit(f'✓ Saved: {save_path}')
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
     def upload_file(self):
@@ -1041,49 +1014,52 @@ class FileManagerWindow(QDialog):
         self.status_label.setText(f'⏳ Uploading: {os.path.basename(path)} …')
         fm_sig = self._fm_signals
         def worker():
+            ser = None
             try:
-                cmd = self.parent_win.build_cmd('upload', options=os.path.basename(path), file=path)
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
-                if proc.returncode == 0:
-                    fm_sig.set_status.emit('✓ Upload complete')
-                    fm_sig.do_reload.emit()
-                else:
-                    fm_sig.set_status.emit('✗ Upload failed')
+                ser = self.parent_win._open_connection()
+                quicksync.upload_file(ser, os.path.basename(path), path)
+                fm_sig.set_status.emit('✓ Upload complete')
+                fm_sig.do_reload.emit()
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
     def delete_selected(self):
         f = self._selected_file()
         if not f:
-            QMessageBox.information(self, 'Notice', 'Please select a file.')
+            QMessageBox.information(self, 'Hinweis', 'Bitte eine Datei auswählen.')
             return
-        r = QMessageBox.question(self, 'Delete', f'Really delete file "{f["name"]}"?')
+        r = QMessageBox.question(self, 'Löschen', f'Datei "{f["name"]}" wirklich löschen?')
         if r != QMessageBox.Yes:
             return
-        self.status_label.setText(f'⏳ Deleting: {f["name"]} …')
+        self.status_label.setText(f'⏳ Lösche: {f["name"]} …')
+        fm_sig = self._fm_signals
         fm_sig = self._fm_signals
         def worker():
+            ser = None
             try:
                 remote_path = f"{f['folder']}/{f['name']}"
-                cmd = self.parent_win.build_cmd('delete', options=remote_path)
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=CLI_DEFAULT_TIMEOUT)
-                if proc.returncode == 0:
-                    fm_sig.set_status.emit(f'✓ Deleted: {f["name"]}')
-                    fm_sig.do_reload.emit()
-                else:
-                    fm_sig.set_status.emit('✗ Delete failed')
+                ser = self.parent_win._open_connection()
+                quicksync.delete_file(ser, remote_path)
+                fm_sig.set_status.emit(f'✓ Deleted: {f["name"]}')
+                fm_sig.do_reload.emit()
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
 class ContactsWindow(QDialog):
-    COLUMNS = [('name', 'Name', 200), ('cell', 'Mobile', 130), ('home', 'Home', 130), ('work', 'Work', 130), ('email', 'E-Mail', 200)]
+    COLUMNS = [('name', 'Name', 200), ('cell', 'Mobil', 130), ('home', 'Privat', 130), ('work', 'Geschäftl.', 130), ('email', 'E-Mail', 200)]
 
     def __init__(self, parent: QuickSyncGUI):
         super().__init__(parent)
         self.parent_win = parent
-        self.setWindowTitle('Manage Contacts')
+        self.setWindowTitle('Kontakte verwalten')
         self.resize(900, 500)
         self.cards: list[dict] = []
         self._row_to_index: dict[int, int] = {}
@@ -1098,12 +1074,12 @@ class ContactsWindow(QDialog):
             b = QPushButton(label); b.clicked.connect(slot); toolbar.addWidget(b); return b
         tbtn('Neu',        self.new_contact)
         tbtn('Bearbeiten', self.edit_selected)
-        tbtn('Delete',    self.delete_selected)
+        tbtn('Löschen',    self.delete_selected)
         toolbar.addSpacing(12)
         tbtn('Neu laden',  self.reload_with_confirm)
         tbtn('Speichern',  self.save)
         tbtn('Übertragen', self.transmit)
-        tbtn('Close',  self._on_close_request)
+        tbtn('Schließen',  self._on_close_request)
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
@@ -1122,7 +1098,7 @@ class ContactsWindow(QDialog):
         self.show()
         
         # Sofortiger visueller Indikator im Hauptfenster
-        self.parent_win.ui_kontakt_anzahl.setText("wird geladen...")
+        self.parent_win.ui_contact_count.setText("wird geladen...")
         QTimer.singleShot(50, self.reload)
 
     def _refresh_status(self):
@@ -1131,40 +1107,44 @@ class ContactsWindow(QDialog):
         self.status_label.setText(f'{len(self.cards)} Kontakt(e){suffix}')
         
         # Absolut direkte und sichere Aktualisierung des Hauptfenster-Labels aus dem UI-Thread
-        self.parent_win.ui_kontakt_anzahl.setText(str(len(self.cards)))
+        self.parent_win.ui_contact_count.setText(str(len(self.cards)))
 
     def reload(self):
         if self._reload_thread and self._reload_thread.is_alive():
-            self.parent_win._signals.append_text.emit('⚠ Reload already running — please wait.')
+            self.parent_win._signals.append_text.emit('⚠ Reload läuft bereits — bitte warten.')
             return
         self.parent_win.output.clear()
-        self.status_label.setText('Loading contacts …')
+        self.status_label.setText('Lade Kontakte …')
         sig = self.parent_win._signals
 
         def worker():
             if not self.parent_win.current_device():
                 QTimer.singleShot(0, self, lambda: self._on_error('Load failed', RuntimeError('No device connected.')))
                 return
+            ser = None
             fd, path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_')
             os.close(fd)
             try:
-                self.parent_win.run_cli_sync('getcontacts', file=path)
-                size = os.path.getsize(path)
-                sig.append_text.emit(f'VCF geladen: {size} Bytes')
-                with open(path, 'r', encoding='utf-8') as f:
-                    vcf = f.read()
+                ser = self.parent_win._open_connection()
+                vcf_bytes = quicksync.get_contacts(ser)
+                with open(path, 'wb') as f:
+                    f.write(vcf_bytes)
+                vcf = vcf_bytes.decode('utf-8', errors='replace')
                 if not vcf.strip():
-                    raise RuntimeError('Telefon hat eine leere Antwort geliefert.')
+                    raise RuntimeError('Device returned an empty response.')
                 cards = vcard.parseCards(vcf)
                 sig.append_text.emit(f'{len(cards)} contact(s) processed')
-                QTimer.singleShot(0, self.parent_win, lambda: self.parent_win.ui_kontakt_anzahl.setText(str(len(cards))))
+                QTimer.singleShot(0, self.parent_win, lambda: self.parent_win.ui_contact_count.setText(str(len(cards))))
                 QTimer.singleShot(0, self, lambda: self._populate(cards, path))
             except Exception as e:
                 try:
                     os.unlink(path)
                 except OSError:
                     pass
-                QTimer.singleShot(0, self, lambda: self._on_error('Laden fehlgeschlagen', e))
+                QTimer.singleShot(0, self, lambda: self._on_error('Load failed', e))
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
 
         self._reload_thread = threading.Thread(target=worker, daemon=True)
         self._reload_thread.start()
@@ -1237,18 +1217,25 @@ class ContactsWindow(QDialog):
         creates = [c for c in self.cards if not c.get('luid')]
         
         def worker():
+            ser = None
             try:
-                for luid in deletes: self.parent_win.run_cli_sync('deletecontact', options=luid)
+                ser = self.parent_win._open_connection()
+                for luid in deletes:
+                    quicksync.delete_contact(ser, luid)
+                    quicksync.close_connection(ser)
+                    ser = self.parent_win._open_connection()
                 if creates:
-                    fd, path = tempfile.mkstemp(suffix='.vcf')
-                    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                        for c in creates: f.write(vcard.formatCard(c))
-                    self.parent_win.run_cli_sync('createcontacts', file=path)
-                    try: os.unlink(path)
-                    except OSError: pass
+                    for c in creates:
+                        vcf_bytes = vcard.formatCard(c).encode('utf-8')
+                        quicksync.create_contact(ser, vcf_bytes)
+                        quicksync.close_connection(ser)
+                        ser = self.parent_win._open_connection()
                 QTimer.singleShot(0, self.reload)
             except Exception as e:
-                QTimer.singleShot(0, lambda: QMessageBox.critical(self, 'Fehler', str(e)))
+                QTimer.singleShot(0, lambda: QMessageBox.critical(self, 'Error', str(e)))
+            finally:
+                if ser:
+                    quicksync.close_connection(ser)
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_close_request(self): self.close()
@@ -1256,7 +1243,7 @@ class ContactsWindow(QDialog):
 class ContactEditor(QDialog):
     def __init__(self, parent, card, on_save):
         super().__init__(parent)
-        self.setWindowTitle('Edit Contact' if card.get('luid') else 'Neuer Kontakt')
+        self.setWindowTitle('Kontakt bearbeiten' if card.get('luid') else 'Neuer Kontakt')
         self.resize(400, 450)
         self.card = card
         self.on_save = on_save
@@ -1273,7 +1260,7 @@ class ContactEditor(QDialog):
         form.addRow('Vorname:', self.entries['first_name'])
         form.addRow('Nachname:', self.entries['last_name'])
         form.addRow('Mobil:', self.entries['cell'])
-        form.addRow('Phone:', self.entries['home'])
+        form.addRow('Telefon:', self.entries['home'])
         form.addRow('E-Mail:', self.entries['email'])
         layout.addLayout(form)
         
