@@ -28,3 +28,6 @@ exclude = [
   "assets/",
   "venv/",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["QuickSync4LinuxGui"]
