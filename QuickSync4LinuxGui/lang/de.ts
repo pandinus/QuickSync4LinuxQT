@@ -268,6 +268,22 @@
         <translation>Baudrate (Seriell):</translation>
     </message>
     <message>
+        <source>QuickSync4LinuxGui</source>
+        <translation>QuickSync4LinuxGui</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Schließen</translation>
+    </message>
+    <message>
         <source>Language</source>
         <translation>Sprache</translation>
     </message>
@@ -275,14 +291,30 @@
         <source>The language change takes effect after restarting the application.</source>
         <translation>Die Sprachänderung wird nach einem Neustart der Anwendung wirksam.</translation>
     </message>
-    <message>
-        <source>QuickSync4LinuxGui</source>
-        <translation>QuickSync4LinuxGui</translation>
-    </message>
 </context>
 
 <context>
     <name>FileManagerWindow</name>
+    <message>
+        <source>Deleting</source>
+        <translation>Lösche</translation>
+    </message>
+    <message>
+        <source>Reload</source>
+        <translation>Aktualisieren</translation>
+    </message>
+    <message>
+        <source>Download</source>
+        <translation>Herunterladen</translation>
+    </message>
+    <message>
+        <source>Upload</source>
+        <translation>Hochladen</translation>
+    </message>
+    <message>
+        <source>Really delete file "{}"?</source>
+        <translation>Datei „{}" wirklich löschen?</translation>
+    </message>
     <message>
         <source>Loading file list …</source>
         <translation>Dateiliste wird geladen …</translation>
@@ -359,6 +391,54 @@
 
 <context>
     <name>ContactsWindow</name>
+    <message>
+        <source>Mobile</source>
+        <translation>Mobil</translation>
+    </message>
+    <message>
+        <source>Home</source>
+        <translation>Privat</translation>
+    </message>
+    <message>
+        <source>Work</source>
+        <translation>Geschäftl.</translation>
+    </message>
+    <message>
+        <source>contact(s)</source>
+        <translation>Kontakt(e)</translation>
+    </message>
+    <message>
+        <source>unsaved change(s)</source>
+        <translation>ungespeicherte Änderung(en)</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>Neu</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Bearbeiten</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>Reload</source>
+        <translation>Neu laden</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Speichern</translation>
+    </message>
+    <message>
+        <source>Transmit</source>
+        <translation>Übertragen</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Schließen</translation>
+    </message>
     <message>
         <source>{} contact(s) processed</source>
         <translation>{} Kontakt(e) verarbeitet</translation>

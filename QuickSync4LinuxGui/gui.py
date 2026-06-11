@@ -58,6 +58,20 @@ def _translate_err(widget, key: str) -> str:
         return widget.tr(src)
     return key
 
+def _make_dialog_buttons(widget, flags=None):
+    """Creates a QDialogButtonBox with translatable button labels."""
+    from PySide6.QtWidgets import QDialogButtonBox
+    if flags is None:
+        flags = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+    btns = QDialogButtonBox(flags)
+    ok_btn = btns.button(QDialogButtonBox.Ok)
+    cancel_btn = btns.button(QDialogButtonBox.Cancel)
+    close_btn = btns.button(QDialogButtonBox.Close)
+    if ok_btn:     ok_btn.setText(widget.tr('OK'))
+    if cancel_btn: cancel_btn.setText(widget.tr('Cancel'))
+    if close_btn:  close_btn.setText(widget.tr('Close'))
+    return btns
+
 
 def simple_input(parent, title: str, label: str) -> str:
     from PySide6.QtWidgets import QInputDialog
@@ -204,13 +218,13 @@ class QuickSyncGUI(QMainWindow):
         self.ui_seriennummer = QLineEdit("-"); self.ui_seriennummer.setReadOnly(True)
         self.ui_kontakt_anzahl = QLineEdit("-"); self.ui_kontakt_anzahl.setReadOnly(True)
 
-        form_layout.addRow(self.tr("<b>Geräteinformationen</b>"), QLabel(""))
-        form_layout.addRow(self.tr("Hersteller:"), self.ui_hersteller)
-        form_layout.addRow(self.tr("Modell / Produkt:"), self.ui_modell)
-        form_layout.addRow(self.tr("MAC-Adresse:"), self.ui_mac)
-        form_layout.addRow(self.tr("Firmware-Version:"), self.ui_firmware)
-        form_layout.addRow(self.tr("Seriennummer (IPUI):"), self.ui_seriennummer)
-        form_layout.addRow(self.tr("Anzahl Kontakte:"), self.ui_kontakt_anzahl)
+        form_layout.addRow(self.tr("<b>Device Information</b>"), QLabel(""))
+        form_layout.addRow(self.tr("Manufacturer:"), self.ui_hersteller)
+        form_layout.addRow(self.tr("Model / Product:"), self.ui_modell)
+        form_layout.addRow(self.tr("MAC Address:"), self.ui_mac)
+        form_layout.addRow(self.tr("Firmware Version:"), self.ui_firmware)
+        form_layout.addRow(self.tr("Serial Number (IPUI):"), self.ui_seriennummer)
+        form_layout.addRow(self.tr("Contact Count:"), self.ui_kontakt_anzahl)
         right_col.addLayout(form_layout)
 
         line = QFrame()
@@ -355,10 +369,10 @@ class QuickSyncGUI(QMainWindow):
 
     def check_connection_or_warn(self) -> bool:
         if not self.current_device():
-            QMessageBox.warning(self, self.tr('Kein Gerät'), self.tr('Bitte zuerst ein Gerät auswählen.'))
+            QMessageBox.warning(self, self.tr('No Device'), self.tr('Please select a device first.'))
             return False
         if self._device_connected is not True:
-            QMessageBox.warning(self, self.tr('Nicht verbunden'), self.tr('Bitte zuerst eine Verbindung herstellen.'))
+            QMessageBox.warning(self, self.tr('Not Connected'), self.tr('Please connect to a device first.'))
             return False
         return True
 
@@ -404,7 +418,7 @@ class QuickSyncGUI(QMainWindow):
         out.setFont(QFont('Monospace', 9))
         out.setPlainText(text)
         layout.addWidget(out)
-        btn = QDialogButtonBox(QDialogButtonBox.Close)
+        btn = _make_dialog_buttons(self, QDialogButtonBox.Close)
         btn.rejected.connect(dlg.reject)
         layout.addWidget(btn)
         dlg.exec()
@@ -518,11 +532,11 @@ class QuickSyncGUI(QMainWindow):
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
         from PySide6.QtWidgets import QSpinBox
-        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Verbindungs-Timeout (s):', chk)
-        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
-        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
+        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow(self.tr('Connection timeout (s):'), chk)
+        dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow(self.tr('Bluetooth timeout (s):'), dsk)
+        cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow(self.tr('CLI timeout (s):'), cli)
         layout.addLayout(form)
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns = _make_dialog_buttons(self)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() == QDialog.Accepted:
             backend.CHECK_TIMEOUT = chk.value()
@@ -541,9 +555,9 @@ class QuickSyncGUI(QMainWindow):
         for b in ['1200', '2400', '4800', '9600', '19200', '38400', '57600', '115200']:
             baud_combo.addItem(b)
         baud_combo.setCurrentText(backend.DEFAULT_BAUD)
-        form.addRow('Baudrate (Seriell):', baud_combo)
+        form.addRow(self.tr('Baud rate (Serial):'), baud_combo)
         layout.addLayout(form)
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns = _make_dialog_buttons(self)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() == QDialog.Accepted:
             backend.DEFAULT_BAUD = baud_combo.currentText()
@@ -569,7 +583,7 @@ class QuickSyncGUI(QMainWindow):
         info = QLabel(self.tr('The language change takes effect after restarting the application.'))
         info.setWordWrap(True)
         layout.addWidget(info)
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns = _make_dialog_buttons(self)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() == QDialog.Accepted:
             selected_lang = lang_combo.currentData()
@@ -716,7 +730,7 @@ class QuickSyncGUI(QMainWindow):
         self.output.clear()
         self._append_output(f'✓ Verbindung zu {label} getrennt')
         self._set_connection_state(False)
-        self._update_status_bar('Kein Gerät verbunden', '#d9534f')
+        self._update_status_bar(self.tr('No device connected'), '#d9534f')
 
 # ─── Zusätzliche Fenster-Klassen ──────────────────────────────────────────────
 
@@ -761,10 +775,10 @@ class FileManagerWindow(QDialog):
                 b.setStyleSheet("QPushButton { text-align: left; }")
             return b
 
-        btn_reload = tbtn('Aktualisieren', QStyle.SP_BrowserReload, self.reload)
-        btn_download = tbtn('Herunterladen', QStyle.SP_ArrowDown, self.download_selected)
-        btn_upload = tbtn('Hochladen', QStyle.SP_ArrowUp, self.upload_file)
-        btn_delete = tbtn('Löschen', QStyle.SP_TrashIcon, self.delete_selected, is_danger=True)
+        btn_reload = tbtn(self.tr('Reload'), QStyle.SP_BrowserReload, self.reload)
+        btn_download = tbtn(self.tr('Download'), QStyle.SP_ArrowDown, self.download_selected)
+        btn_upload = tbtn(self.tr('Upload'), QStyle.SP_ArrowUp, self.upload_file)
+        btn_delete = tbtn(self.tr('Delete'), QStyle.SP_TrashIcon, self.delete_selected, is_danger=True)
         
         toolbar.addWidget(btn_reload)
         toolbar.addWidget(btn_download)
@@ -1104,10 +1118,10 @@ class FileManagerWindow(QDialog):
         if not f:
             QMessageBox.information(self, self.tr('Hinweis'), self.tr('Bitte eine Datei auswählen.'))
             return
-        r = QMessageBox.question(self, 'Löschen', f'Datei "{f["name"]}" wirklich löschen?')
+        r = QMessageBox.question(self, self.tr('Delete'), self.tr('Really delete file "{}"?').format(f['name']))
         if r != QMessageBox.Yes:
             return
-        self.status_label.setText(f'⏳ Lösche: {f["name"]} …')
+        self.status_label.setText(f'⏳ {self.tr("Deleting")}: {f["name"]} …')
         fm_sig = self._fm_signals
         fm_sig = self._fm_signals
         def worker():
@@ -1126,7 +1140,7 @@ class FileManagerWindow(QDialog):
         threading.Thread(target=worker, daemon=True).start()
 
 class ContactsWindow(QDialog):
-    COLUMNS = [('name', 'Name', 200), ('cell', 'Mobil', 130), ('home', 'Privat', 130), ('work', 'Geschäftl.', 130), ('email', 'E-Mail', 200)]
+    COLUMNS = [('name', 'Name', 200), ('cell', 'Mobile', 130), ('home', 'Home', 130), ('work', 'Work', 130), ('email', 'E-Mail', 200)]
 
     def __init__(self, parent: QuickSyncGUI):
         super().__init__(parent)
@@ -1144,14 +1158,14 @@ class ContactsWindow(QDialog):
         toolbar = QHBoxLayout()
         def tbtn(label, slot):
             b = QPushButton(label); b.clicked.connect(slot); toolbar.addWidget(b); return b
-        tbtn('Neu',        self.new_contact)
-        tbtn('Bearbeiten', self.edit_selected)
-        tbtn('Löschen',    self.delete_selected)
+        tbtn(self.tr('New'),          self.new_contact)
+        tbtn(self.tr('Edit'),         self.edit_selected)
+        tbtn(self.tr('Delete'),       self.delete_selected)
         toolbar.addSpacing(12)
-        tbtn('Neu laden',  self.reload_with_confirm)
-        tbtn('Speichern',  self.save)
-        tbtn('Übertragen', self.transmit)
-        tbtn('Schließen',  self._on_close_request)
+        tbtn(self.tr('Reload'),       self.reload_with_confirm)
+        tbtn(self.tr('Save'),         self.save)
+        tbtn(self.tr('Transmit'),     self.transmit)
+        tbtn(self.tr('Close'),        self._on_close_request)
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
@@ -1175,8 +1189,8 @@ class ContactsWindow(QDialog):
 
     def _refresh_status(self):
         pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
-        suffix = f' — {pending} ungespeicherte Änderung(en)' if pending else ''
-        self.status_label.setText(f'{len(self.cards)} Kontakt(e){suffix}')
+        suffix = f' — {pending} ' + self.tr('unsaved change(s)') if pending else ''
+        self.status_label.setText(f'{len(self.cards)} ' + self.tr('contact(s)') + suffix)
         
         # Absolut direkte und sichere Aktualisierung des Hauptfenster-Labels aus dem UI-Thread
         self.parent_win.ui_kontakt_anzahl.setText(str(len(self.cards)))
@@ -1186,7 +1200,7 @@ class ContactsWindow(QDialog):
             self.parent_win._signals.append_text.emit('⚠ Reload läuft bereits — bitte warten.')
             return
         self.parent_win.output.clear()
-        self.status_label.setText('Lade Kontakte …')
+        self.status_label.setText(self.tr('Loading contacts …'))
         sig = self.parent_win._signals
 
         def worker():
@@ -1331,12 +1345,12 @@ class ContactEditor(QDialog):
         
         form.addRow('Vorname:', self.entries['first_name'])
         form.addRow('Nachname:', self.entries['last_name'])
-        form.addRow('Mobil:', self.entries['cell'])
+        form.addRow(self.tr('Mobile') + ':', self.entries['cell'])
         form.addRow('Telefon:', self.entries['home'])
         form.addRow('E-Mail:', self.entries['email'])
         layout.addLayout(form)
         
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns = _make_dialog_buttons(self)
         btns.accepted.connect(self._save); btns.rejected.connect(self.reject)
         layout.addWidget(btns)
         self.show()
@@ -1353,7 +1367,7 @@ class ContactEditor(QDialog):
 def simple_input(parent, title, prompt) -> str | None:
     dlg = QDialog(parent); dlg.setWindowTitle(title)
     l = QVBoxLayout(dlg); l.addWidget(QLabel(prompt)); e = QLineEdit(); l.addWidget(e)
-    b = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); b.accepted.connect(dlg.accept); b.rejected.connect(dlg.reject); l.addWidget(b)
+    b = _make_dialog_buttons(self); b.accepted.connect(dlg.accept); b.rejected.connect(dlg.reject); l.addWidget(b)
     if dlg.exec() == QDialog.Accepted: return e.text().strip() or None
     return None
 
