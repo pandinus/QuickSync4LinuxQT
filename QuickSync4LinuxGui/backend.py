@@ -139,10 +139,14 @@ def check_bt_connected(mac: str) -> bool | None:
 
 # ─── Verbindungsfehler interpretieren ─────────────────────────────────────────
 def interpret_connection_error(text: str, mac: str = '') -> str | None:
-    """Returns a symbolic error key or None. The GUI layer translates keys via _translate_err()."""
+    """Returns a symbolic error key or None. The GUI layer translates keys via _translate_err().
+    Uses errno numbers for matching — language-independent."""
     t = text.lower()
-    if 'host is down' in t or 'errno 112' in t:
-        # Prüfen ob Bluetooth-Verbindung besteht
+    import re as _re
+    m = _re.search(r'\[errno\s+(\d+)\]', t)
+    errno_num = int(m.group(1)) if m else None
+
+    if errno_num == 112 or 'host is down' in t:
         if mac:
             bt_connected = check_bt_connected(mac)
             if bt_connected is False:
@@ -150,11 +154,11 @@ def interpret_connection_error(text: str, mac: str = '') -> str | None:
             elif bt_connected is True:
                 return 'ERR_NOT_REACHABLE_LOCKED'
         return 'ERR_NOT_REACHABLE'
-    if 'connection refused' in t or 'errno 111' in t:
+    if errno_num == 111 or 'connection refused' in t:
         return 'ERR_REFUSED'
-    if 'no route to host' in t or 'errno 113' in t:
+    if errno_num == 113 or 'no route to host' in t:
         return 'ERR_NOT_FOUND'
-    if 'timed out' in t or 'timeout' in t:
+    if errno_num == 110 or 'timed out' in t or 'timeout' in t:
         return 'ERR_TIMEOUT'
     return None
 

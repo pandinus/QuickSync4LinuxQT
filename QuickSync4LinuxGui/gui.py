@@ -242,7 +242,7 @@ class QuickSyncGUI(QMainWindow):
         self.setStatusBar(sb)
         self._status_dot = QLabel('●')
         self._status_dot.setStyleSheet('color: gray;')
-        self._status_label = QLabel('Gerät-Status wird überprüft…')
+        self._status_label = QLabel(self.tr('Checking device status…'))
         sb.addWidget(self._status_dot)
         sb.addWidget(self._status_label, 1)
 
@@ -590,7 +590,7 @@ class QuickSyncGUI(QMainWindow):
 
     def check_device_connection(self):
         label = self.current_device_label()
-        self._update_status_bar(f'{label}: Status prüfen …' if label else 'Verbindung wird geprüft …', '#888888')
+        self._update_status_bar(f'{label}: {self.tr("Checking device status…")}' if label else self.tr('Checking device status…'), '#888888')
         sig = self._signals
 
         def worker():
@@ -633,7 +633,7 @@ class QuickSyncGUI(QMainWindow):
         self.output.clear()
         self._append_output('--- Verbindung wird hergestellt ---')
         label = self.current_device_label()
-        self._update_status_bar(f'{label}: Verbinde …', '#888888')
+        self._update_status_bar(f'{label}: {self.tr("--- Establishing connection ---")}' if label else self.tr('--- Establishing connection ---'), '#888888')
         sig = self._signals
 
         def worker():
@@ -841,7 +841,7 @@ class FileManagerWindow(QDialog):
         QTimer.singleShot(50, self.reload)
 
     def reload(self):
-        self.status_label.setText('Lade Dateiliste …')
+        self.status_label.setText(self.tr('Loading file list …'))
         self.space_label.setText('')
         self.table.setRowCount(0)
         self.folder_sidebar.clear()
@@ -932,7 +932,7 @@ class FileManagerWindow(QDialog):
             self.folder_sidebar.setCurrentRow(0)
             self._filter_by_folder(self.folder_sidebar.item(0).text())
         else:
-            self.status_label.setText('0 Dateien gefunden.')
+            self.status_label.setText(self.tr('✗ No files found.'))
 
     def _on_sidebar_folder_changed(self, item):
         self._filter_by_folder(item.text())
@@ -962,7 +962,7 @@ class FileManagerWindow(QDialog):
             
         self.table.resizeRowsToContents()
         current_folder = self.folder_sidebar.currentItem().text() if self.folder_sidebar.currentItem() else ""
-        self.status_label.setText(f'{len(files)} Datei(en) in "{current_folder}"')
+        self.status_label.setText(self.tr('{} file(s) in "{}"').format(len(files), current_folder))
 
     def _selected_file(self):
         row = self.table.currentRow()

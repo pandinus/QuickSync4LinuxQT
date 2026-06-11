@@ -297,8 +297,6 @@
         <source>✗ Timeout — Please unlock your phone and try again.</source>
         <translation>✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.</translation>
     </message>
-
-    <!-- Allgemeine Status- und Fehlermeldungen -->
     <message>
         <source>✗ No device selected or connection lost</source>
         <translation>✗ Kein Gerät ausgewählt oder Verbindung verloren</translation>
@@ -315,17 +313,17 @@
         <source>Unknown action</source>
         <translation>Unbekannte Aktion</translation>
     </message>
-
-    <!-- Kontakte -->
     <message>
         <source>{} contact(s) processed</source>
         <translation>{} Kontakt(e) verarbeitet</translation>
     </message>
-
-    <!-- Dateimanager -->
     <message>
         <source>✓ File list loaded: {} file(s) in {} folder(s)</source>
         <translation>✓ Dateiliste geladen: {} Datei(en) in {} Ordner(n)</translation>
+    </message>
+    <message>
+        <source>{} file(s) in "{}"</source>
+        <translation>{} Datei(en) in „{}"</translation>
     </message>
     <message>
         <source>Downloading</source>
@@ -354,6 +352,10 @@
     <message>
         <source>Loading file list …</source>
         <translation>Dateiliste wird geladen …</translation>
+    </message>
+    <message>
+        <source>{} file(s) in "{}"</source>
+        <translation>{} Datei(en) in „{}"</translation>
     </message>
     <message>
         <source>✓ File list loaded: {} file(s) in {} folder(s)</source>
