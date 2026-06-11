@@ -34,6 +34,13 @@ To start the graphical interface:
 python3 -m QuickSync4LinuxGui
 ```
 
+Alternatively, install the desktop entry to launch the GUI from your application menu or file manager:
+
+```bash
+cp quicksync4linuxgui.desktop ~/.local/share/applications/
+update-desktop-database ~/.local/share/applications/
+```
+
 The CLI remains fully usable without GUI components:
 
 ```bash
