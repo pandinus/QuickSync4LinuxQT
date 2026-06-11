@@ -41,6 +41,24 @@ DISCOVER_TIMEOUT    = backend.DISCOVER_TIMEOUT
 CLI_DEFAULT_TIMEOUT = backend.CLI_DEFAULT_TIMEOUT
 DEFAULT_BAUD        = backend.DEFAULT_BAUD
 
+# ─── Übersetzung der Backend-Fehlercodes ──────────────────────────────────────
+_BT_ERROR_STRINGS: dict[str, str] = {
+    'ERR_NOT_CONNECTED':      '✗ Device not connected — Please enable Bluetooth on your phone.',
+    'ERR_NOT_REACHABLE_LOCKED': '✗ Device not reachable — Please turn on the screen and unlock your phone.',
+    'ERR_NOT_REACHABLE':      '✗ Device not reachable — Please enable Bluetooth and turn on the screen of your phone.',
+    'ERR_REFUSED':            '✗ Connection refused — Please enable Bluetooth on your phone.',
+    'ERR_NOT_FOUND':          '✗ Device not found — Please enable Bluetooth on your phone.',
+    'ERR_TIMEOUT':            '✗ Timeout — Please unlock your phone and try again.',
+}
+
+def _translate_err(widget, key: str) -> str:
+    """Übersetzt einen Backend-Fehlerkey über Qt tr() ins aktive Locale."""
+    src = _BT_ERROR_STRINGS.get(key)
+    if src:
+        return widget.tr(src)
+    return key
+
+
 def simple_input(parent, title: str, label: str) -> str:
     from PySide6.QtWidgets import QInputDialog
     text, ok = QInputDialog.getText(parent, title, label)
@@ -57,7 +75,7 @@ class _WorkerSignals(QObject):
 class QuickSyncGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('QuickSync4LinuxGui')
+        self.setWindowTitle(self.tr('QuickSync4LinuxGui'))
         self.resize(720, 560)
 
         self._device_map: dict[str, str] = {}
@@ -105,26 +123,26 @@ class QuickSyncGUI(QMainWindow):
             b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             return b
 
-        sb_group('Device')
-        sidebar_layout.addWidget(sb_btn('Connect',   QStyle.SP_DialogApplyButton,     self.test_connection,   success=True))
-        sidebar_layout.addWidget(sb_btn('Disconnect',     QStyle.SP_DialogCancelButton,    self.disconnect_device, danger=True))
-        sidebar_layout.addWidget(sb_btn('Info',        QStyle.SP_MessageBoxInformation, lambda: self.run_action('info')))
-        sidebar_layout.addWidget(sb_btn('Obex Info',   QStyle.SP_MessageBoxInformation, lambda: self.run_action('obexinfo')))
+        sb_group(self.tr('Device'))
+        sidebar_layout.addWidget(sb_btn(self.tr('Connect'),   QStyle.SP_DialogApplyButton,     self.test_connection,   success=True))
+        sidebar_layout.addWidget(sb_btn(self.tr('Disconnect'),     QStyle.SP_DialogCancelButton,    self.disconnect_device, danger=True))
+        sidebar_layout.addWidget(sb_btn(self.tr('Info'),        QStyle.SP_MessageBoxInformation, lambda: self.run_action('info')))
+        sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Obex Info')),   QStyle.SP_MessageBoxInformation, lambda: self.run_action('obexinfo')))
         
-        sb_group('Contacts')
-        sidebar_layout.addWidget(sb_btn('Manage Contacts',   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
-        sidebar_layout.addWidget(sb_btn('Export', QStyle.SP_ArrowDown,              self.get_contacts))
-        sidebar_layout.addWidget(sb_btn('Import', QStyle.SP_ArrowUp,               lambda: self.choose_file_and_run('createcontacts')))
+        sb_group(self.tr('Contacts'))
+        sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Manage Contacts')),   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
+        sidebar_layout.addWidget(sb_btn(self.tr('Export'), QStyle.SP_ArrowDown,              self.get_contacts))
+        sidebar_layout.addWidget(sb_btn(self.tr('Import'), QStyle.SP_ArrowUp,               lambda: self.choose_file_and_run('createcontacts')))
 
-        sb_group('Files')
-        sidebar_layout.addWidget(sb_btn('Filemanager', QStyle.SP_DirOpenIcon, self.open_file_manager))
+        sb_group(self.tr('Files'))
+        sidebar_layout.addWidget(sb_btn(self.tr('File Manager'), QStyle.SP_DirOpenIcon, self.open_file_manager))
 
-        sb_group('Settings')
-        sidebar_layout.addWidget(sb_btn('Timeouts', QStyle.SP_DialogHelpButton, self.open_settings_timeouts))
-        sidebar_layout.addWidget(sb_btn('Baudrate', QStyle.SP_DialogHelpButton, self.open_settings_baudrate))
+        sb_group(self.tr('Settings'))
+        sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Timeouts')), QStyle.SP_DialogHelpButton, self.open_settings_timeouts))
+        sidebar_layout.addWidget(sb_btn(self.tr('Baudrate'), QStyle.SP_DialogHelpButton, self.open_settings_baudrate))
 
-        sb_group('Log / Console')
-        sidebar_layout.addWidget(sb_btn('open Log', QStyle.SP_FileIcon, self.open_log))
+        sb_group(self.tr('Log / Console'))
+        sidebar_layout.addWidget(sb_btn(self.tr('Open Log'), QStyle.SP_FileIcon, self.open_log))
 
         sidebar_layout.addStretch()
         content_row.addWidget(sidebar)
@@ -177,20 +195,20 @@ class QuickSyncGUI(QMainWindow):
         form_layout = QFormLayout()
         form_layout.setSpacing(6)
 
-        self.ui_manufacturer = QLineEdit("-"); self.ui_manufacturer.setReadOnly(True)
-        self.ui_model = QLineEdit("-"); self.ui_model.setReadOnly(True)
+        self.ui_hersteller = QLineEdit("-"); self.ui_hersteller.setReadOnly(True)
+        self.ui_modell = QLineEdit("-"); self.ui_modell.setReadOnly(True)
         self.ui_mac = QLineEdit("-"); self.ui_mac.setReadOnly(True)
         self.ui_firmware = QLineEdit("-"); self.ui_firmware.setReadOnly(True)
-        self.ui_serial = QLineEdit("-"); self.ui_serial.setReadOnly(True)
-        self.ui_contact_count = QLineEdit("-"); self.ui_contact_count.setReadOnly(True)
+        self.ui_seriennummer = QLineEdit("-"); self.ui_seriennummer.setReadOnly(True)
+        self.ui_kontakt_anzahl = QLineEdit("-"); self.ui_kontakt_anzahl.setReadOnly(True)
 
-        form_layout.addRow("<b>Geräteinformationen</b>", QLabel(""))
-        form_layout.addRow("Manufacturer:", self.ui_manufacturer)
-        form_layout.addRow("Model / Product:", self.ui_model)
-        form_layout.addRow("MAC Address:", self.ui_mac)
-        form_layout.addRow("Firmware Version:", self.ui_firmware)
-        form_layout.addRow("Serial Number (IPUI):", self.ui_serial)
-        form_layout.addRow("Contact Count:", self.ui_contact_count)
+        form_layout.addRow(self.tr("<b>Geräteinformationen</b>"), QLabel(""))
+        form_layout.addRow(self.tr("Hersteller:"), self.ui_hersteller)
+        form_layout.addRow(self.tr("Modell / Produkt:"), self.ui_modell)
+        form_layout.addRow(self.tr("MAC-Adresse:"), self.ui_mac)
+        form_layout.addRow(self.tr("Firmware-Version:"), self.ui_firmware)
+        form_layout.addRow(self.tr("Seriennummer (IPUI):"), self.ui_seriennummer)
+        form_layout.addRow(self.tr("Anzahl Kontakte:"), self.ui_kontakt_anzahl)
         right_col.addLayout(form_layout)
 
         line = QFrame()
@@ -224,7 +242,7 @@ class QuickSyncGUI(QMainWindow):
             return
 
         if action == 'contact_count':
-            self.ui_contact_count.setText(text)
+            self.ui_kontakt_anzahl.setText(text)
             return
 
         def find_val(pattern, string):
@@ -242,12 +260,12 @@ class QuickSyncGUI(QMainWindow):
         seriennummer = find_val(r'(?:Seriennummer|Serial(?:\s*\(IPUI\))?)\s*:\s*(.*)', text)
         anzahl = find_val(r'(?:Received|Found|Total)\s*([0-9]+)\s*(?:contacts|Kontakte)', text)
 
-        if hersteller: self.ui_manufacturer.setText(hersteller)
-        if modell: self.ui_model.setText(modell.split(',')[-1].strip() if ',' in modell else modell)
+        if hersteller: self.ui_hersteller.setText(hersteller)
+        if modell: self.ui_modell.setText(modell.split(',')[-1].strip() if ',' in modell else modell)
         if mac: self.ui_mac.setText(mac)
         if firmware: self.ui_firmware.setText(firmware)
-        if seriennummer: self.ui_serial.setText(seriennummer)
-        if anzahl: self.ui_contact_count.setText(anzahl)
+        if seriennummer: self.ui_seriennummer.setText(seriennummer)
+        if anzahl: self.ui_kontakt_anzahl.setText(anzahl)
 
     def _on_conn_type_changed(self):
         """Wechselt zwischen Bluetooth- und Seriell-Modus."""
@@ -324,10 +342,10 @@ class QuickSyncGUI(QMainWindow):
 
     def check_connection_or_warn(self) -> bool:
         if not self.current_device():
-            QMessageBox.warning(self, 'No Device', 'Please choose a device from the dropdown first.')
+            QMessageBox.warning(self, self.tr('Kein Gerät'), self.tr('Bitte zuerst ein Gerät auswählen.'))
             return False
         if self._device_connected is not True:
-            QMessageBox.warning(self, 'No connection', 'Please connect to a device first.')
+            QMessageBox.warning(self, self.tr('Nicht verbunden'), self.tr('Bitte zuerst eine Verbindung herstellen.'))
             return False
         return True
 
@@ -335,7 +353,7 @@ class QuickSyncGUI(QMainWindow):
         """Open a direct connection to the current device."""
         dev = self.current_device()
         if not dev:
-            raise RuntimeError('No device selected.')
+            raise RuntimeError(self.tr('No device selected.'))
         baud = int(self.baud.text()) if self.baud.text() else 9600
         return quicksync.open_connection(dev, baud)
 
@@ -357,7 +375,7 @@ class QuickSyncGUI(QMainWindow):
 
     
     def set_log_file(self, path: str | None = None):
-        self._append_output(f'Log file: {backend.DEFAULT_LOG_FILE} (max. 1 MB, 3 backups)')
+        self._append_output(f'Log-Datei: {backend.DEFAULT_LOG_FILE} (max. 1 MB, 3 Backups)')
 
     def _update_status_bar(self, text: str, colour: str):
         self._status_dot.setStyleSheet(f'color: {colour};')
@@ -382,12 +400,12 @@ class QuickSyncGUI(QMainWindow):
         dev = self.current_device()
         if not dev:
             self.output.clear()
-            self._append_output('✗ No device selected or connection lost')
+            self._append_output(self.tr('✗ No device selected or connection lost'))
             return
 
         if self._device_connected is False and action not in ('info', 'obexinfo'):
-            QMessageBox.warning(self, 'Connection Lost',
-                'The device is currently disconnected. Please reconnect.')
+            QMessageBox.warning(self, self.tr('Connection Lost'),
+                self.tr('The device is currently disconnected. Please reconnect.'))
             return
 
         self.output.clear()
@@ -399,12 +417,12 @@ class QuickSyncGUI(QMainWindow):
                 ser = self._open_connection()
                 if action == 'info':
                     result = quicksync.get_info(ser)
-                    sig.show_info.emit('Device Info', result)
+                    sig.show_info.emit(self.tr('Device Info'), result)
                     sig.clear_output.emit()
                     sig.action_finished.emit('info', result)
                 elif action == 'obexinfo':
                     result = quicksync.get_obex_info(ser)
-                    sig.show_info.emit('Obex Info', result)
+                    sig.show_info.emit(self.tr('Obex Info'), result)
                     sig.clear_output.emit()
                     sig.action_finished.emit('obexinfo', result)
                 elif action == 'getcontacts':
@@ -428,9 +446,9 @@ class QuickSyncGUI(QMainWindow):
                     if options:
                         quicksync.delete_file(ser, options)
                 else:
-                    sig.append_text.emit(f'Unknown action: {action}')
+                    sig.append_text.emit(f'{self.tr("Unknown action")}: {action}')
             except Exception as e:
-                sig.append_text.emit(f'✗ Error: {e}')
+                sig.append_text.emit(f'✗ {self.tr("Error")}: {e}')
             finally:
                 if ser:
                     quicksync.close_connection(ser)
@@ -471,7 +489,7 @@ class QuickSyncGUI(QMainWindow):
 
         # Dialog im richtigen Verzeichnis öffnen
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Choose log file', initial_dir, 'Log files (*.log);;All files (*)'
+            self, 'Log-Datei wählen', initial_dir, 'Log-Dateien (*.log);;Alle Dateien (*)'
         )
         
         if not path:
@@ -479,15 +497,15 @@ class QuickSyncGUI(QMainWindow):
         try:
             subprocess.Popen(['xdg-open', path])
         except Exception as e:
-            self._append_output(f'✗ Could not open log file: {e}')
+            self._append_output(f'✗ Log-Datei konnte nicht geöffnet werden: {e}')
 
     def open_settings_timeouts(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle('Settings')
+        dlg.setWindowTitle(self.tr('Settings'))
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
         from PySide6.QtWidgets import QSpinBox
-        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Connection Timeout (s):', chk)
+        chk = QSpinBox(); chk.setRange(1, 3600); chk.setValue(backend.CHECK_TIMEOUT); form.addRow('Verbindungs-Timeout (s):', chk)
         dsk = QSpinBox(); dsk.setRange(1, 3600); dsk.setValue(backend.DISCOVER_TIMEOUT); form.addRow('Bluetooth Timeout (s):', dsk)
         cli = QSpinBox(); cli.setRange(1, 36000); cli.setValue(backend.CLI_DEFAULT_TIMEOUT); form.addRow('CLI Timeout (s):', cli)
         layout.addLayout(form)
@@ -501,7 +519,7 @@ class QuickSyncGUI(QMainWindow):
 
     def open_settings_baudrate(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle('Settings')
+        dlg.setWindowTitle(self.tr('Settings'))
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
         from PySide6.QtWidgets import QComboBox as _CB
@@ -565,7 +583,7 @@ class QuickSyncGUI(QMainWindow):
 
         def worker():
             connected = False
-            status_text = 'No device connected'
+            status_text = self.tr('No device connected')
             status_color = '#d9534f'
             ser = None
             dev = self.current_device()
@@ -573,7 +591,7 @@ class QuickSyncGUI(QMainWindow):
                 if dev:
                     ser = self._open_connection()
                     info_text = quicksync.get_info(ser)
-                    status_text = f'{label} connected' if label else 'Device connected'
+                    status_text = f'{label} {self.tr("connected")}' if label else self.tr('Device connected')
                     status_color = '#5cb85c'
                     connected = True
                     sig.append_text.emit(f'✓ {status_text}')
@@ -586,8 +604,8 @@ class QuickSyncGUI(QMainWindow):
                     except Exception:
                         pass
             except Exception as e:
-                friendly = backend.interpret_connection_error(str(e), dev)
-                msg = friendly or f'✗ Error: {e}'
+                key = backend.interpret_connection_error(str(e), dev)
+                msg = _translate_err(self, key) if key else f'✗ {self.tr("Error")}: {e}'
                 sig.append_text.emit(msg)
                 status_text = msg
                 status_color = '#d9534f'
@@ -613,22 +631,22 @@ class QuickSyncGUI(QMainWindow):
             dev = self.current_device()
             try:
                 if not dev:
-                    result = 'No device selected.'
+                    result = self.tr('No device selected.')
                 else:
                     ser = self._open_connection()
                     info_text = quicksync.get_info(ser)
-                    result = f'✓ Device connected: {label or dev}'
+                    result = f'✓ {self.tr("Device connected")}: {label or dev}'
                     connected = True
                     self._log_raw_output(info_text)
                     sig.action_finished.emit('info', info_text)
             except Exception as e:
-                friendly = backend.interpret_connection_error(str(e), dev)
-                result = friendly or f'✗ Connection to {label} ({dev}) failed: {e}'
+                key = backend.interpret_connection_error(str(e), dev)
+                result = _translate_err(self, key) if key else f'✗ {self.tr("Connection to")} {label} ({dev}) {self.tr("failed")}: {e}'
             finally:
                 if ser:
                     quicksync.close_connection(ser)
 
-            status = ((f'{label} connected' if label else 'Device connected', '#5cb85c') if connected else ('No device connected', '#d9534f'))
+            status = ((f'{label} {self.tr("connected")}' if label else self.tr('Device connected'), '#5cb85c') if connected else (self.tr('No device connected'), '#d9534f'))
             sig.connection_state.emit(connected)
             sig.append_text.emit(result)
             sig.status_update.emit(*status)
@@ -663,7 +681,7 @@ class FileManagerWindow(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent_win = parent
-        self.setWindowTitle('Dateimanager — Dolphin Style')
+        self.setWindowTitle(self.tr('File Manager'))
         self.resize(950, 550)
         self._files: list[dict] = []
         self._all_files: list[dict] = []
@@ -818,15 +836,15 @@ class FileManagerWindow(QDialog):
             ser = None
             log = self.parent_win._signals
             try:
-                log.append_text.emit('Loading file list …')
-                fm_sig.set_status.emit('Loading file list …')
+                log.append_text.emit(self.tr('Loading file list …'))
+                fm_sig.set_status.emit(self.tr('Loading file list …'))
                 ser = self.parent_win._open_connection()
                 output = quicksync.list_files(ser)
 
                 try:
                     files = self._parse_listfiles(output)
                 except Exception as parse_exc:
-                    fm_sig.set_status.emit(f'✗ Parse error: {parse_exc}')
+                    fm_sig.set_status.emit(f'✗ {self.tr("Parse error")}: {parse_exc}')
                     return
 
                 import re as _re
@@ -835,14 +853,14 @@ class FileManagerWindow(QDialog):
                 space_text = f'Free: {free.group(1)}  |  Total: {total.group(1)}' if total and free else ''
 
                 if not files:
-                    fm_sig.set_status.emit('✗ No files found.')
+                    fm_sig.set_status.emit(self.tr('✗ No files found.'))
                     return
 
-                log.append_text.emit(f'✓ File list loaded: {len(files)} file(s) in {len(set(f["folder"] for f in files))} folder(s)')
+                log.append_text.emit(self.tr('✓ File list loaded: {} file(s) in {} folder(s)').format(len(files), len(set(f["folder"] for f in files))))
                 fm_sig.setup_ui.emit(files, space_text)
             except Exception as e:
-                log.append_text.emit(f'[FileManager] Error: {e}')
-                fm_sig.set_status.emit(f'✗ Error: {e}')
+                log.append_text.emit(f'[FileManager] {self.tr("Error")}: {e}')
+                fm_sig.set_status.emit(f'✗ {self.tr("Error")}: {e}')
             finally:
                 if ser:
                     quicksync.close_connection(ser)
@@ -986,12 +1004,12 @@ class FileManagerWindow(QDialog):
     def download_selected(self):
         f = self._selected_file()
         if not f:
-            QMessageBox.information(self, 'Notice', 'Please select a file.')
+            QMessageBox.information(self, self.tr(self.tr('Notice')), self.tr(self.tr('Please select a file.')))
             return
-        save_path, _ = QFileDialog.getSaveFileName(self, 'Save as', f['name'])
+        save_path, _ = QFileDialog.getSaveFileName(self, self.tr('Save as'), f['name'])
         if not save_path:
             return
-        self.status_label.setText(f'⏳ Downloading: {f["name"]} …')
+        self.status_label.setText(f'⏳ {self.tr("Downloading")}: {f["name"]} …')
         fm_sig = self._fm_signals
         def worker():
             ser = None
@@ -999,7 +1017,7 @@ class FileManagerWindow(QDialog):
                 remote_path = f"{f['folder']}/{f['name']}"
                 ser = self.parent_win._open_connection()
                 quicksync.download_file(ser, remote_path, save_path)
-                fm_sig.set_status.emit(f'✓ Saved: {save_path}')
+                fm_sig.set_status.emit(f'✓ {self.tr("Saved")}: {save_path}')
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
             finally:
@@ -1008,17 +1026,17 @@ class FileManagerWindow(QDialog):
         threading.Thread(target=worker, daemon=True).start()
 
     def upload_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, 'Choose file to upload', os.path.expanduser('~'))
+        path, _ = QFileDialog.getOpenFileName(self, self.tr('Choose file to upload'), os.path.expanduser('~'))
         if not path:
             return
-        self.status_label.setText(f'⏳ Uploading: {os.path.basename(path)} …')
+        self.status_label.setText(f'⏳ {self.tr("Uploading")}: {os.path.basename(path)} …')
         fm_sig = self._fm_signals
         def worker():
             ser = None
             try:
                 ser = self.parent_win._open_connection()
                 quicksync.upload_file(ser, os.path.basename(path), path)
-                fm_sig.set_status.emit('✓ Upload complete')
+                fm_sig.set_status.emit(self.tr('✓ Upload complete'))
                 fm_sig.do_reload.emit()
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
@@ -1030,7 +1048,7 @@ class FileManagerWindow(QDialog):
     def delete_selected(self):
         f = self._selected_file()
         if not f:
-            QMessageBox.information(self, 'Hinweis', 'Bitte eine Datei auswählen.')
+            QMessageBox.information(self, self.tr('Hinweis'), self.tr('Bitte eine Datei auswählen.'))
             return
         r = QMessageBox.question(self, 'Löschen', f'Datei "{f["name"]}" wirklich löschen?')
         if r != QMessageBox.Yes:
@@ -1044,7 +1062,7 @@ class FileManagerWindow(QDialog):
                 remote_path = f"{f['folder']}/{f['name']}"
                 ser = self.parent_win._open_connection()
                 quicksync.delete_file(ser, remote_path)
-                fm_sig.set_status.emit(f'✓ Deleted: {f["name"]}')
+                fm_sig.set_status.emit(f'✓ {self.tr("Deleted")}: {f["name"]}')
                 fm_sig.do_reload.emit()
             except Exception as e:
                 fm_sig.set_status.emit(f'✗ {e}')
@@ -1059,7 +1077,7 @@ class ContactsWindow(QDialog):
     def __init__(self, parent: QuickSyncGUI):
         super().__init__(parent)
         self.parent_win = parent
-        self.setWindowTitle('Kontakte verwalten')
+        self.setWindowTitle(self.tr('Manage Contacts'))
         self.resize(900, 500)
         self.cards: list[dict] = []
         self._row_to_index: dict[int, int] = {}
@@ -1098,7 +1116,7 @@ class ContactsWindow(QDialog):
         self.show()
         
         # Sofortiger visueller Indikator im Hauptfenster
-        self.parent_win.ui_contact_count.setText("wird geladen...")
+        self.parent_win.ui_kontakt_anzahl.setText("wird geladen...")
         QTimer.singleShot(50, self.reload)
 
     def _refresh_status(self):
@@ -1107,7 +1125,7 @@ class ContactsWindow(QDialog):
         self.status_label.setText(f'{len(self.cards)} Kontakt(e){suffix}')
         
         # Absolut direkte und sichere Aktualisierung des Hauptfenster-Labels aus dem UI-Thread
-        self.parent_win.ui_contact_count.setText(str(len(self.cards)))
+        self.parent_win.ui_kontakt_anzahl.setText(str(len(self.cards)))
 
     def reload(self):
         if self._reload_thread and self._reload_thread.is_alive():
@@ -1119,7 +1137,7 @@ class ContactsWindow(QDialog):
 
         def worker():
             if not self.parent_win.current_device():
-                QTimer.singleShot(0, self, lambda: self._on_error('Load failed', RuntimeError('No device connected.')))
+                QTimer.singleShot(0, self, lambda: self._on_error(self.tr('Load failed'), RuntimeError(self.tr('No device connected.'))))
                 return
             ser = None
             fd, path = tempfile.mkstemp(suffix='.vcf', prefix='quicksync_')
@@ -1131,17 +1149,17 @@ class ContactsWindow(QDialog):
                     f.write(vcf_bytes)
                 vcf = vcf_bytes.decode('utf-8', errors='replace')
                 if not vcf.strip():
-                    raise RuntimeError('Device returned an empty response.')
+                    raise RuntimeError(self.tr('Device returned an empty response.'))
                 cards = vcard.parseCards(vcf)
-                sig.append_text.emit(f'{len(cards)} contact(s) processed')
-                QTimer.singleShot(0, self.parent_win, lambda: self.parent_win.ui_contact_count.setText(str(len(cards))))
+                sig.append_text.emit(self.tr('{} contact(s) processed').format(len(cards)))
+                QTimer.singleShot(0, self.parent_win, lambda: self.parent_win.ui_kontakt_anzahl.setText(str(len(cards))))
                 QTimer.singleShot(0, self, lambda: self._populate(cards, path))
             except Exception as e:
                 try:
                     os.unlink(path)
                 except OSError:
                     pass
-                QTimer.singleShot(0, self, lambda: self._on_error('Load failed', e))
+                QTimer.singleShot(0, self, lambda: self._on_error(self.tr('Load failed'), e))
             finally:
                 if ser:
                     quicksync.close_connection(ser)
@@ -1152,7 +1170,7 @@ class ContactsWindow(QDialog):
     def reload_with_confirm(self):
         pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
         if pending > 0:
-            r = QMessageBox.question(self, 'Neu laden', 'Es gibt ungespeicherte Änderungen. Trotzdem neu laden?')
+            r = QMessageBox.question(self, self.tr('Neu laden'), self.tr('Es gibt ungespeicherte Änderungen. Trotzdem neu laden?'))
             if r != QMessageBox.Yes:
                 return
         self.modified_luids.clear()
@@ -1232,7 +1250,7 @@ class ContactsWindow(QDialog):
                         ser = self.parent_win._open_connection()
                 QTimer.singleShot(0, self.reload)
             except Exception as e:
-                QTimer.singleShot(0, lambda: QMessageBox.critical(self, 'Error', str(e)))
+                QTimer.singleShot(0, lambda: QMessageBox.critical(self, self.tr('Error'), str(e)))
             finally:
                 if ser:
                     quicksync.close_connection(ser)
@@ -1288,6 +1306,14 @@ def simple_input(parent, title, prompt) -> str | None:
 def run():
     import sys
     app = QApplication.instance() or QApplication(sys.argv)
+
+    # Load translation based on system locale
+    from PySide6.QtCore import QTranslator, QLocale, QLibraryInfo
+    translator = QTranslator(app)
+    locale = QLocale.system().name()  # e.g. 'de_DE'
+    lang_dir = os.path.join(os.path.dirname(__file__), 'lang')
+    if translator.load(locale, lang_dir):
+        app.installTranslator(translator)
     win = QuickSyncGUI()
     win.show()
     app.exec()
