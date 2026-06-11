@@ -93,12 +93,15 @@ class QuickSyncGUI(QMainWindow):
         root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(6)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(8)
+        # QSplitter: Seitenleiste verschiebbar wie in Dolphin
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(4)
 
         # Sidebar
         sidebar = QWidget()
-        sidebar.setFixedWidth(155)
+        sidebar.setMinimumWidth(120)
+        sidebar.setMaximumWidth(300)
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(1)
@@ -128,7 +131,7 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.addWidget(sb_btn(self.tr('Disconnect'),     QStyle.SP_DialogCancelButton,    self.disconnect_device, danger=True))
         sidebar_layout.addWidget(sb_btn(self.tr('Info'),        QStyle.SP_MessageBoxInformation, lambda: self.run_action('info')))
         sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Obex Info')),   QStyle.SP_MessageBoxInformation, lambda: self.run_action('obexinfo')))
-        
+
         sb_group(self.tr('Contacts'))
         sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Manage Contacts')),   QStyle.SP_FileDialogDetailedView, self.open_contacts_manager))
         sidebar_layout.addWidget(sb_btn(self.tr('Export'), QStyle.SP_ArrowDown,              self.get_contacts))
@@ -145,16 +148,14 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.addWidget(sb_btn(self.tr('Open Log'), QStyle.SP_FileIcon, self.open_log))
 
         sidebar_layout.addStretch()
-        content_row.addWidget(sidebar)
+        splitter.addWidget(sidebar)
 
-        line = QFrame()
-        line.setFrameShape(QFrame.VLine)
-        line.setFrameShadow(QFrame.Sunken)
-        content_row.addWidget(line)
-
-        right_col = QVBoxLayout()
+        # Rechte Seite als Widget für den Splitter
+        right_widget = QWidget()
+        right_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        right_col = QVBoxLayout(right_widget)
         right_col.setSpacing(6)
-        right_col.setContentsMargins(0, 0, 0, 0)
+        right_col.setContentsMargins(6, 0, 0, 0)
 
         # Verbindungsart-Auswahl
         conn_type_row = QHBoxLayout()
@@ -222,9 +223,20 @@ class QuickSyncGUI(QMainWindow):
         right_col.addWidget(self.output, stretch=1)
         self._signals.clear_output.connect(self.output.clear)
 
-        content_row.addLayout(right_col, stretch=1)
-        root.addLayout(content_row, stretch=1)
+        splitter.addWidget(right_widget)
+        # Anfangsbreiten: Sidebar 160px, Rest bekommt den verbleibenden Platz
+        splitter.setSizes([160, 600])
+        # Splitter-Position beim Beenden speichern und beim Start wiederherstellen
+        self._splitter = splitter
+        root.addWidget(splitter, stretch=1)
         self.set_log_file(DEFAULT_LOG_FILE)
+
+        # Splitter-Position aus den Settings laden
+        from PySide6.QtCore import QSettings
+        _s = QSettings('QuickSync4LinuxGui', 'QuickSync4LinuxGui')
+        splitter_state = _s.value('mainSplitterState')
+        if splitter_state:
+            self._splitter.restoreState(splitter_state)
 
         sb = QStatusBar()
         self.setStatusBar(sb)
@@ -652,6 +664,12 @@ class QuickSyncGUI(QMainWindow):
             sig.status_update.emit(*status)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def closeEvent(self, event):
+        from PySide6.QtCore import QSettings
+        _s = QSettings('QuickSync4LinuxGui', 'QuickSync4LinuxGui')
+        _s.setValue('mainSplitterState', self._splitter.saveState())
+        super().closeEvent(event)
 
     def disconnect_device(self):
         dev = self.current_device()
