@@ -88,6 +88,10 @@
         <translation>Log öffnen</translation>
     </message>
     <message>
+        <source>connected</source>
+        <translation>verbunden</translation>
+    </message>
+    <message>
         <source>No device connected</source>
         <translation>Kein Gerät verbunden</translation>
     </message>
@@ -267,69 +271,57 @@
         <source>QuickSync4LinuxGui</source>
         <translation>QuickSync4LinuxGui</translation>
     </message>
+</context>
 
-    <!-- Backend-Fehlercodes -->
+<context>
+    <name>FileManagerWindow</name>
     <message>
-        <source>✗ Device not connected — Please enable Bluetooth on your phone.</source>
-        <translation>✗ Gerät nicht verbunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+        <source>Loading file list …</source>
+        <translation>Dateiliste wird geladen …</translation>
     </message>
-    <message>
-        <source>✗ Device not reachable — Please turn on the screen and unlock your phone.</source>
-        <translation>✗ Gerät nicht erreichbar — Bitte Bildschirm einschalten und Telefon entsperren.</translation>
-    </message>
-    <message>
-        <source>✗ Device not reachable — Please enable Bluetooth and turn on the screen of your phone.</source>
-        <translation>✗ Gerät nicht erreichbar — Bitte Bluetooth aktivieren und Bildschirm einschalten.</translation>
-    </message>
-    <message>
-        <source>✗ Connection refused — Please enable Bluetooth on your phone.</source>
-        <translation>✗ Verbindung abgelehnt — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
-    </message>
-    <message>
-        <source>✗ Device not found — Please enable Bluetooth on your phone.</source>
-        <translation>✗ Gerät nicht gefunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
-    </message>
-    <message>
-        <source>✗ Timeout — Please unlock your phone and try again.</source>
-        <translation>✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.</translation>
-    </message>
-
-    <!-- Allgemeine Status- und Fehlermeldungen -->
-    <message>
-        <source>✗ No device selected or connection lost</source>
-        <translation>✗ Kein Gerät ausgewählt oder Verbindung verloren</translation>
-    </message>
-    <message>
-        <source>connected</source>
-        <translation>verbunden</translation>
-    </message>
-    <message>
-        <source>Connection to</source>
-        <translation>Verbindung zu</translation>
-    </message>
-    <message>
-        <source>failed</source>
-        <translation>fehlgeschlagen</translation>
-    </message>
-    <message>
-        <source>Unknown action</source>
-        <translation>Unbekannte Aktion</translation>
-    </message>
-    <message>
-        <source>Parse error</source>
-        <translation>Parse-Fehler</translation>
-    </message>
-
-    <!-- Kontakte -->
-    <message>
-        <source>{} contact(s) processed</source>
-        <translation>{} Kontakt(e) verarbeitet</translation>
-    </message>
-
-    <!-- Dateimanager -->
     <message>
         <source>✓ File list loaded: {} file(s) in {} folder(s)</source>
         <translation>✓ Dateiliste geladen: {} Datei(en) in {} Ordner(n)</translation>
+    </message>
+    <message>
+        <source>✗ No files found.</source>
+        <translation>✗ Keine Dateien gefunden.</translation>
+    </message>
+    <message>
+        <source>✗ Preview not available</source>
+        <translation>✗ Vorschau nicht verfügbar</translation>
+    </message>
+    <message>
+        <source>✓ Upload complete</source>
+        <translation>✓ Upload abgeschlossen</translation>
+    </message>
+    <message>
+        <source>✗ Upload failed</source>
+        <translation>✗ Upload fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>✗ Delete failed</source>
+        <translation>✗ Löschen fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>Save as</source>
+        <translation>Speichern als</translation>
+    </message>
+    <message>
+        <source>Choose file to upload</source>
+        <translation>Datei zum Hochladen wählen</translation>
+    </message>
+    <message>
+        <source>Notice</source>
+        <translation>Hinweis</translation>
+    </message>
+    <message>
+        <source>Please select a file.</source>
+        <translation>Bitte eine Datei auswählen.</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Löschen</translation>
     </message>
     <message>
         <source>Downloading</source>
@@ -346,6 +338,74 @@
     <message>
         <source>Deleted</source>
         <translation>Gelöscht</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Fehler</translation>
+    </message>
+    <message>
+        <source>Parse error</source>
+        <translation>Parse-Fehler</translation>
+    </message>
+</context>
+
+<context>
+    <name>ContactsWindow</name>
+    <message>
+        <source>{} contact(s) processed</source>
+        <translation>{} Kontakt(e) verarbeitet</translation>
+    </message>
+    <message>
+        <source>Loading contacts …</source>
+        <translation>Kontakte werden geladen …</translation>
+    </message>
+    <message>
+        <source>Manage Contacts</source>
+        <translation>Kontakte verwalten</translation>
+    </message>
+    <message>
+        <source>Edit Contact</source>
+        <translation>Kontakt bearbeiten</translation>
+    </message>
+    <message>
+        <source>Load failed</source>
+        <translation>Laden fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>Device returned an empty response.</source>
+        <translation>Gerät hat eine leere Antwort geliefert.</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Fehler</translation>
+    </message>
+    <message>
+        <source>VCF files (*.vcf);;All files (*)</source>
+        <translation>VCF-Dateien (*.vcf);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Export contacts as</source>
+        <translation>Kontakte exportieren als</translation>
+    </message>
+    <message>
+        <source>Import VCF file</source>
+        <translation>VCF-Datei importieren</translation>
+    </message>
+    <message>
+        <source>Choose VCF file</source>
+        <translation>VCF-Datei wählen</translation>
+    </message>
+    <message>
+        <source>Save contacts as</source>
+        <translation>Kontakte speichern als</translation>
+    </message>
+    <message>
+        <source>Not Connected</source>
+        <translation>Nicht verbunden</translation>
+    </message>
+    <message>
+        <source>Please connect to a device first.</source>
+        <translation>Bitte zuerst eine Verbindung herstellen.</translation>
     </message>
 </context>
 </TS>
