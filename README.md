@@ -61,18 +61,18 @@ python3 -m QuickSync4LinuxGui getcontacts -d <MAC> -f contacts.vcf
 
 Main window:
 
-![Main window](Screenshots/QuickSync4LinuxGui%20-%20Hauptfenster.png)
+![Main window](Screenshots/QuickSync4LinuxGui%20-%20Main%20Window.png)
 
 Contact manager:
 
-![Contact manager](Screenshots/QuickSync4LinuxGui%20-%20Kontakteverwaltung.png)
+![Contact manager](Screenshots/QuickSync4LinuxGui%20-%20Contact%20Manager.png)
 
 File manager:
 
-![File manager](Screenshots/QuickSync4LinuxGui%20-%20Dateiverwaltung.png)
+![File manager](Screenshots/QuickSync4LinuxGui%20-%20File%20Manager.png)
 
 Settings:
 
-![Settings timeouts](Screenshots/QuickSync4LinuxGui%20-%20Einstellung%20Timeouts.png)
+![Settings timeouts](Screenshots/QuickSync4LinuxGui%20-%20Settings%20Timeouts.png)
 
-![Settings baudrate](Screenshots/QuickSync4LinuxGui%20-%20Einstellung%20Baudrate.png)
+![Settings baudrate](Screenshots/QuickSync4LinuxGui%20-%20Settings%20Baudrate.png)
