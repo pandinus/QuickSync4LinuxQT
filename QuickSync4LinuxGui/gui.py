@@ -143,6 +143,7 @@ class QuickSyncGUI(QMainWindow):
         sb_group(self.tr('Settings'))
         sidebar_layout.addWidget(sb_btn(self.tr(self.tr('Timeouts')), QStyle.SP_DialogHelpButton, self.open_settings_timeouts))
         sidebar_layout.addWidget(sb_btn(self.tr('Baudrate'), QStyle.SP_DialogHelpButton, self.open_settings_baudrate))
+        sidebar_layout.addWidget(sb_btn(self.tr('Language'), QStyle.SP_DialogHelpButton, self.open_settings_language))
 
         sb_group(self.tr('Log / Console'))
         sidebar_layout.addWidget(sb_btn(self.tr('Open Log'), QStyle.SP_FileIcon, self.open_log))
@@ -549,6 +550,31 @@ class QuickSyncGUI(QMainWindow):
             self.baud.setText(baud_combo.currentText())
             backend.save_settings()
 
+    def open_settings_language(self):
+        from PySide6.QtCore import QSettings, QTranslator, QLocale
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr('Language'))
+        layout = QVBoxLayout(dlg)
+        form = QFormLayout()
+        lang_combo = QComboBox()
+        lang_combo.addItem('English', 'en')
+        lang_combo.addItem('Deutsch', 'de')
+        _s = QSettings('QuickSync4LinuxGui', 'QuickSync4LinuxGui')
+        current_lang = _s.value('language', '')
+        idx = lang_combo.findData(current_lang)
+        if idx >= 0:
+            lang_combo.setCurrentIndex(idx)
+        form.addRow(self.tr('Language') + ':', lang_combo)
+        layout.addLayout(form)
+        info = QLabel(self.tr('The language change takes effect after restarting the application.'))
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
+        if dlg.exec() == QDialog.Accepted:
+            selected_lang = lang_combo.currentData()
+            _s.setValue('language', selected_lang)
+
     def open_file_manager(self):
         if not self.check_connection_or_warn():
             return
@@ -568,6 +594,16 @@ class QuickSyncGUI(QMainWindow):
             return
         self._contacts_win = ContactsWindow(self)
         self._contacts_win.finished.connect(lambda: setattr(self, '_contacts_win', None))
+
+    def open_file_manager(self):
+        if not self.check_connection_or_warn():
+            return
+        if hasattr(self, '_file_manager_win') and self._file_manager_win is not None:
+            self._file_manager_win.raise_()
+            self._file_manager_win.activateWindow()
+            return
+        self._file_manager_win = FileManagerWindow(self)
+        self._file_manager_win.finished.connect(lambda: setattr(self, '_file_manager_win', None))
 
 
 
@@ -1325,13 +1361,22 @@ def run():
     import sys
     app = QApplication.instance() or QApplication(sys.argv)
 
-    # Load translation based on system locale
-    from PySide6.QtCore import QTranslator, QLocale, QLibraryInfo
+    # Load translation: use saved language setting, fall back to system locale
+    from PySide6.QtCore import QTranslator, QLocale, QSettings
+    _s = QSettings('QuickSync4LinuxGui', 'QuickSync4LinuxGui')
+    saved_lang = _s.value('language', '')
     translator = QTranslator(app)
-    locale = QLocale.system().name()  # e.g. 'de_DE'
     lang_dir = os.path.join(os.path.dirname(__file__), 'lang')
-    if translator.load(locale, lang_dir):
+    if saved_lang and saved_lang != 'en':
+        # Explizit gewählte Sprache laden
+        translator.load(saved_lang, lang_dir)
         app.installTranslator(translator)
+    elif not saved_lang:
+        # Systemsprache verwenden
+        locale = QLocale.system().name()  # e.g. 'de_DE'
+        if translator.load(locale, lang_dir):
+            app.installTranslator(translator)
+    # saved_lang == 'en': kein Translator → Englisch als Fallback
     win = QuickSyncGUI()
     win.show()
     app.exec()
