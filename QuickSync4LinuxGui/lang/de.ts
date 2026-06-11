@@ -271,6 +271,82 @@
         <source>QuickSync4LinuxGui</source>
         <translation>QuickSync4LinuxGui</translation>
     </message>
+
+    <!-- Backend-Fehlercodes -->
+    <message>
+        <source>✗ Device not connected — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Gerät nicht verbunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not reachable — Please turn on the screen and unlock your phone.</source>
+        <translation>✗ Gerät nicht erreichbar — Bitte Bildschirm einschalten und Telefon entsperren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not reachable — Please enable Bluetooth and turn on the screen of your phone.</source>
+        <translation>✗ Gerät nicht erreichbar — Bitte Bluetooth aktivieren und Bildschirm einschalten.</translation>
+    </message>
+    <message>
+        <source>✗ Connection refused — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Verbindung abgelehnt — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not found — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Gerät nicht gefunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Timeout — Please unlock your phone and try again.</source>
+        <translation>✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.</translation>
+    </message>
+
+    <!-- Allgemeine Status- und Fehlermeldungen -->
+    <message>
+        <source>✗ No device selected or connection lost</source>
+        <translation>✗ Kein Gerät ausgewählt oder Verbindung verloren</translation>
+    </message>
+    <message>
+        <source>Connection to</source>
+        <translation>Verbindung zu</translation>
+    </message>
+    <message>
+        <source>failed</source>
+        <translation>fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>Unknown action</source>
+        <translation>Unbekannte Aktion</translation>
+    </message>
+
+    <!-- Kontakte -->
+    <message>
+        <source>{} contact(s) processed</source>
+        <translation>{} Kontakt(e) verarbeitet</translation>
+    </message>
+
+    <!-- Dateimanager -->
+    <message>
+        <source>✓ File list loaded: {} file(s) in {} folder(s)</source>
+        <translation>✓ Dateiliste geladen: {} Datei(en) in {} Ordner(n)</translation>
+    </message>
+    <message>
+        <source>Downloading</source>
+        <translation>Herunterladen</translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation>Gespeichert</translation>
+    </message>
+    <message>
+        <source>Uploading</source>
+        <translation>Hochladen</translation>
+    </message>
+    <message>
+        <source>Deleted</source>
+        <translation>Gelöscht</translation>
+    </message>
+    <message>
+        <source>Parse error</source>
+        <translation>Parse-Fehler</translation>
+    </message>
 </context>
 
 <context>
