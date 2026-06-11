@@ -1,6 +1,6 @@
 """
 QuickSync4LinuxGui — Backend
-Gemeinsame Logik und CLI-Kommunikation.
+Shared logic and CLI communication.
 """
 import os
 import re
@@ -26,7 +26,6 @@ import datetime as _dt
 
 def _setup_rotating_logger():
     os.makedirs(_CONFIG_DIR, exist_ok=True)
-    #os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
         DEFAULT_LOG_FILE,
         maxBytes=1 * 1024 * 1024,  # 1 MB
@@ -46,16 +45,16 @@ logger = _setup_rotating_logger()
 # Trennlinie + Programmstart — nur einmal, über eine Sentinel-Datei
 _sentinel = os.path.join(_CONFIG_DIR, '.started')
 if not os.path.exists(_sentinel):
-    # Sentinel anlegen damit Subprozesse (CLI-Aufrufe) keinen eigenen Start loggen
+    # Create sentinel so subprocesses do not log their own start
     open(_sentinel, 'w').close()
     _start_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     logger.info('─' * 60)
-    logger.info(f'Programmstart: {_start_time}')
+    logger.info(f'Program start: {_start_time}')
 
     import atexit as _atexit
     def _log_exit():
         _end_time = _dt.datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-        logger.info(f'Programmende:  {_end_time}')
+        logger.info(f'Program end:  {_end_time}')
         logger.info('─' * 60)
         try: os.unlink(_sentinel)
         except: pass
@@ -93,7 +92,7 @@ load_settings()
 
 # ─── Bluetooth-Geräteerkennung ────────────────────────────────────────────────
 def _get_bt_device_class(mac: str) -> str:
-    """Gibt die Geräteklasse eines Bluetooth-Geräts zurück (z.B. 'phone', 'audio')."""
+    """Returns the device class of a Bluetooth device (e.g. 'phone', 'audio')."""
     try:
         out = subprocess.check_output(
             ['bluetoothctl', 'info', mac], text=True, timeout=5
@@ -106,7 +105,7 @@ def _get_bt_device_class(mac: str) -> str:
     return ''
 
 def discover_devices() -> list[tuple[str, str]]:
-    """Gibt eine Liste von (mac, label) für Phone-Geräte via bluetoothctl zurück."""
+    """Returns a list of (mac, label) for phone devices via bluetoothctl."""
     devices = []
     try:
         out = subprocess.check_output(
@@ -139,8 +138,8 @@ def build_cmd(action: str, device: str, baud: str = '',
 
 # ─── Bluetooth-Verbindungsstatus prüfen ──────────────────────────────────────
 def check_bt_connected(mac: str) -> bool | None:
-    """Prüft ob ein Gerät per bluetoothctl aktiv verbunden ist.
-    Gibt True zurück wenn verbunden, False wenn nicht verbunden, None bei Fehler."""
+    """Checks if a device is actively connected via bluetoothctl.
+    Returns True if connected, False if not connected, None on error."""
     try:
         out = subprocess.check_output(
             ['bluetoothctl', 'info', mac], text=True, timeout=5
@@ -160,16 +159,16 @@ def interpret_connection_error(text: str, mac: str = '') -> str | None:
         if mac:
             bt_connected = check_bt_connected(mac)
             if bt_connected is False:
-                return '✗ Gerät nicht verbunden — Bitte Bluetooth am Telefon aktivieren.'
+                return '✗ Device not connected — Please enable Bluetooth on your phone.'
             elif bt_connected is True:
-                return '✗ Gerät nicht erreichbar — Bitte Bildschirm einschalten und Telefon entsperren.'
-        return '✗ Gerät nicht erreichbar — Bitte Bluetooth am Telefon aktivieren und Bildschirm einschalten.'
+                return '✗ Device not reachable — Please turn on the screen and unlock your phone.'
+        return '✗ Device not reachable — Please enable Bluetooth and turn on the screen of your phone.'
     if 'connection refused' in t or 'errno 111' in t:
-        return '✗ Verbindung abgelehnt — Bitte Bluetooth am Telefon aktivieren.'
+        return '✗ Connection refused — Please enable Bluetooth on your phone.'
     if 'no route to host' in t or 'errno 113' in t:
-        return '✗ Gerät nicht gefunden — Bitte Bluetooth am Telefon aktivieren.'
+        return '✗ Device not found — Please enable Bluetooth on your phone.'
     if 'timed out' in t or 'timeout' in t:
-        return '✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.'
+        return '✗ Timeout — Please unlock your phone and try again.'
     return None
 
 def log(text: str):
