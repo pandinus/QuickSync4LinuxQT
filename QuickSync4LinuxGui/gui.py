@@ -1367,7 +1367,7 @@ class ContactEditor(QDialog):
 def simple_input(parent, title, prompt) -> str | None:
     dlg = QDialog(parent); dlg.setWindowTitle(title)
     l = QVBoxLayout(dlg); l.addWidget(QLabel(prompt)); e = QLineEdit(); l.addWidget(e)
-    b = _make_dialog_buttons(self); b.accepted.connect(dlg.accept); b.rejected.connect(dlg.reject); l.addWidget(b)
+    b = _make_dialog_buttons(dlg); b.accepted.connect(dlg.accept); b.rejected.connect(dlg.reject); l.addWidget(b)
     if dlg.exec() == QDialog.Accepted: return e.text().strip() or None
     return None
 
