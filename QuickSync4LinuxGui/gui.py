@@ -1116,7 +1116,7 @@ class FileManagerWindow(QDialog):
     def delete_selected(self):
         f = self._selected_file()
         if not f:
-            QMessageBox.information(self, self.tr('Hinweis'), self.tr('Bitte eine Datei auswählen.'))
+            QMessageBox.information(self, self.tr('Notice'), self.tr('Please select a file.'))
             return
         r = QMessageBox.question(self, self.tr('Delete'), self.tr('Really delete file "{}"?').format(f['name']))
         if r != QMessageBox.Yes:
@@ -1238,7 +1238,7 @@ class ContactsWindow(QDialog):
     def reload_with_confirm(self):
         pending = sum(1 for c in self.cards if not c.get('luid')) + len(self.modified_luids) + len(self.deleted_luids)
         if pending > 0:
-            r = QMessageBox.question(self, self.tr('Neu laden'), self.tr('Es gibt ungespeicherte Änderungen. Trotzdem neu laden?'))
+            r = QMessageBox.question(self, self.tr('Reload'), self.tr('There are unsaved changes. Reload anyway?'))
             if r != QMessageBox.Yes:
                 return
         self.modified_luids.clear()

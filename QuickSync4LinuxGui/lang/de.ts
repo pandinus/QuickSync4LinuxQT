@@ -288,8 +288,62 @@
         <translation>Sprache</translation>
     </message>
     <message>
+        <source>Info</source>
+        <translation>Info</translation>
+    </message>
+    <message>
+        <source>Baudrate</source>
+        <translation>Baudrate</translation>
+    </message>
+    <message>
         <source>The language change takes effect after restarting the application.</source>
         <translation>Die Sprachänderung wird nach einem Neustart der Anwendung wirksam.</translation>
+    </message>
+
+    <!-- Backend-Fehlercodes -->
+    <message>
+        <source>✗ Device not connected — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Gerät nicht verbunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not reachable — Please turn on the screen and unlock your phone.</source>
+        <translation>✗ Gerät nicht erreichbar — Bitte Bildschirm einschalten und Telefon entsperren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not reachable — Please enable Bluetooth and turn on the screen of your phone.</source>
+        <translation>✗ Gerät nicht erreichbar — Bitte Bluetooth aktivieren und Bildschirm einschalten.</translation>
+    </message>
+    <message>
+        <source>✗ Connection refused — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Verbindung abgelehnt — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Device not found — Please enable Bluetooth on your phone.</source>
+        <translation>✗ Gerät nicht gefunden — Bitte Bluetooth auf dem Telefon aktivieren.</translation>
+    </message>
+    <message>
+        <source>✗ Timeout — Please unlock your phone and try again.</source>
+        <translation>✗ Zeitüberschreitung — Bitte Telefon entsperren und erneut versuchen.</translation>
+    </message>
+    <message>
+        <source>✗ No device selected or connection lost</source>
+        <translation>✗ Kein Gerät ausgewählt oder Verbindung verloren</translation>
+    </message>
+    <message>
+        <source>Connection to</source>
+        <translation>Verbindung zu</translation>
+    </message>
+    <message>
+        <source>failed</source>
+        <translation>fehlgeschlagen</translation>
+    </message>
+    <message>
+        <source>Unknown action</source>
+        <translation>Unbekannte Aktion</translation>
+    </message>
+    <message>
+        <source>{} file(s) in "{}"</source>
+        <translation>{} Datei(en) in „{}"</translation>
     </message>
 </context>
 
@@ -391,6 +445,14 @@
 
 <context>
     <name>ContactsWindow</name>
+    <message>
+        <source>Reload</source>
+        <translation>Neu laden</translation>
+    </message>
+    <message>
+        <source>There are unsaved changes. Reload anyway?</source>
+        <translation>Es gibt ungespeicherte Änderungen. Trotzdem neu laden?</translation>
+    </message>
     <message>
         <source>Mobile</source>
         <translation>Mobil</translation>
