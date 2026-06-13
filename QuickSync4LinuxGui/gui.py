@@ -813,7 +813,7 @@ class FileManagerWindow(QDialog):
 
         # Mitte: Die Dateitabelle
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(['Name', 'Datum', 'Größe'])
+        self.table.setHorizontalHeaderLabels([self.tr('Name'), self.tr('Date'), self.tr('Size')])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
@@ -840,7 +840,7 @@ class FileManagerWindow(QDialog):
         preview_layout = QVBoxLayout(preview_panel)
         preview_layout.setContentsMargins(4, 0, 4, 0)
 
-        self.preview_label = QLabel('Keine Auswahl')
+        self.preview_label = QLabel(self.tr('No selection'))
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setStyleSheet('font-weight: bold; color: palette(window-text);')
         
@@ -927,8 +927,11 @@ class FileManagerWindow(QDialog):
                 log.append_text.emit(self.tr('✓ File list loaded: {} file(s) in {} folder(s)').format(len(files), len(set(f["folder"] for f in files))))
                 fm_sig.setup_ui.emit(files, space_text)
             except Exception as e:
-                log.append_text.emit(f'[FileManager] {self.tr("Error")}: {e}')
-                fm_sig.set_status.emit(f'✗ {self.tr("Error")}: {e}')
+                dev = self.parent_win.current_device()
+                key = backend.interpret_connection_error(str(e), dev)
+                msg = _translate_err(self, key) if key else f'✗ {self.tr("Error")}: {e}'
+                log.append_text.emit(f'[FileManager] {msg}')
+                fm_sig.set_status.emit(msg)
             finally:
                 if ser:
                     quicksync.close_connection(ser)
@@ -1024,17 +1027,22 @@ class FileManagerWindow(QDialog):
         f = self._selected_file()
         if not f:
             self.preview_image.clear()
-            self.preview_label.setText('Keine Auswahl')
+            self.preview_label.setText(self.tr('No selection'))
             self.preview_info.clear()
             return
         ext = os.path.splitext(f['name'])[1].lower()
         self.preview_label.setText(f['name'])
-        self.preview_info.setText(f"<b>ID:</b> {f['id']}<br><b>Pfad:</b> {f['folder']}/{f['name']}<br><b>Größe:</b> {f['size']}<br><b>Datum:</b> {f['date']}")
+        self.preview_info.setText(
+            f"<b>ID:</b> {f['id']}<br>"
+            f"<b>{self.tr('Path')}:</b> {f['folder']}/{f['name']}<br>"
+            f"<b>{self.tr('Size')}:</b> {f['size']}<br>"
+            f"<b>{self.tr('Date')}:</b> {f['date']}"
+        )
         if ext in self.IMAGE_EXTS:
-            self.preview_image.setText('⏳ Lade Bild …')
+            self.preview_image.setText(f'⏳ {self.tr("Loading image …")}')
             self._load_preview(f)
         else:
-            self.preview_image.setText('Keine Bildvorschau')
+            self.preview_image.setText(self.tr('No preview available'))
 
     def _load_preview(self, f):
         fm_sig = self._fm_signals
@@ -1064,7 +1072,7 @@ class FileManagerWindow(QDialog):
         except OSError:
             pass
         if pixmap.isNull():
-            self.preview_image.setText('✗ Bildfehler')
+            self.preview_image.setText(f'✗ {self.tr("Image error")}')
             return
         scaled = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.preview_image.setPixmap(scaled)

@@ -350,6 +350,38 @@
 <context>
     <name>FileManagerWindow</name>
     <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Datum</translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation>Größe</translation>
+    </message>
+    <message>
+        <source>Path</source>
+        <translation>Pfad</translation>
+    </message>
+    <message>
+        <source>No selection</source>
+        <translation>Keine Auswahl</translation>
+    </message>
+    <message>
+        <source>Loading image …</source>
+        <translation>Lade Bild …</translation>
+    </message>
+    <message>
+        <source>No preview available</source>
+        <translation>Keine Bildvorschau</translation>
+    </message>
+    <message>
+        <source>Image error</source>
+        <translation>Bildfehler</translation>
+    </message>
+    <message>
         <source>Deleting</source>
         <translation>Lösche</translation>
     </message>
