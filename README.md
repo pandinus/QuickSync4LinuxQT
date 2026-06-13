@@ -76,3 +76,5 @@ Settings:
 ![Settings timeouts](Screenshots/QuickSync4LinuxGui%20-%20Settings%20Timeouts.png)
 
 ![Settings baudrate](Screenshots/QuickSync4LinuxGui%20-%20Settings%20Baudrate.png)
+
+![Settings Language](Screenshots/QuickSync4LinuxGui%20-%20Settings%20Language.png)
