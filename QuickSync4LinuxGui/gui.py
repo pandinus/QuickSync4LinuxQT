@@ -25,7 +25,7 @@ from . import quicksync
 
 from . import backend
 
-# Konstanten aus backend übernehmen
+# Reuse constants from backend
 DEFAULT_LOG_FILE    = backend.DEFAULT_LOG_FILE
 DEFAULT_CONFIG_FILE = backend.DEFAULT_CONFIG_FILE
 BT_MAC_RE           = backend.BT_MAC_RE
@@ -35,13 +35,13 @@ def DISCOVER_TIMEOUT():    return backend.DISCOVER_TIMEOUT
 def CLI_DEFAULT_TIMEOUT(): return backend.CLI_DEFAULT_TIMEOUT
 def DEFAULT_BAUD():        return backend.DEFAULT_BAUD
 
-# Für direkten Zugriff als Modul-Konstanten (Kompatibilität)
+# Module-level aliases for compatibility
 CHECK_TIMEOUT       = backend.CHECK_TIMEOUT
 DISCOVER_TIMEOUT    = backend.DISCOVER_TIMEOUT
 CLI_DEFAULT_TIMEOUT = backend.CLI_DEFAULT_TIMEOUT
 DEFAULT_BAUD        = backend.DEFAULT_BAUD
 
-# ─── Übersetzung der Backend-Fehlercodes ──────────────────────────────────────
+# ─── Backend error-code translation ───────────────────────────────────────────
 _BT_ERROR_STRINGS: dict[str, str] = {
     'ERR_NOT_CONNECTED':      '✗ Device not connected — Please enable Bluetooth on your phone.',
     'ERR_NOT_REACHABLE_LOCKED': '✗ Device not reachable — Please turn on the screen and unlock your phone.',
@@ -52,7 +52,7 @@ _BT_ERROR_STRINGS: dict[str, str] = {
 }
 
 def _translate_err(widget, key: str) -> str:
-    """Übersetzt einen Backend-Fehlerkey über Qt tr() ins aktive Locale."""
+    """Translate a backend error key through Qt tr() into the active locale."""
     src = _BT_ERROR_STRINGS.get(key)
     if src:
         return widget.tr(src)
@@ -165,14 +165,14 @@ class QuickSyncGUI(QMainWindow):
         sidebar_layout.addStretch()
         splitter.addWidget(sidebar)
 
-        # Rechte Seite als Widget für den Splitter
+        # Right-hand side as a splitter widget
         right_widget = QWidget()
         right_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_col = QVBoxLayout(right_widget)
         right_col.setSpacing(6)
         right_col.setContentsMargins(6, 0, 0, 0)
 
-        # Verbindungsart-Auswahl
+        # Connection type selector
         conn_type_row = QHBoxLayout()
         self._conn_type_group = QButtonGroup(self)
         self._rb_bt = QRadioButton('Bluetooth')
@@ -204,7 +204,7 @@ class QuickSyncGUI(QMainWindow):
         self.baud.setVisible(False)
         right_col.addWidget(dev_row_widget)
 
-        # Verbindungsart wechseln
+        # Switch connection type
         self._rb_bt.toggled.connect(self._on_conn_type_changed)
         self._rb_serial.toggled.connect(self._on_conn_type_changed)
 
@@ -295,7 +295,7 @@ class QuickSyncGUI(QMainWindow):
         if anzahl: self.ui_kontakt_anzahl.setText(anzahl)
 
     def _on_conn_type_changed(self):
-        """Wechselt zwischen Bluetooth- und Seriell-Modus."""
+        """Switch between Bluetooth and serial mode."""
         if self._rb_bt.isChecked():
             self.device.setEditable(False)
         else:
@@ -307,7 +307,7 @@ class QuickSyncGUI(QMainWindow):
         self.device.clear()
 
         if self._rb_serial.isChecked():
-            # Serielle Geräte anzeigen
+            # Show serial devices
             import glob
             serial_ports = sorted(
                 glob.glob('/dev/ttyACM*') +
@@ -323,7 +323,7 @@ class QuickSyncGUI(QMainWindow):
             elif serial_ports:
                 self.device.setCurrentIndex(0)
         else:
-            # Bluetooth-Geräte anzeigen
+            # Show Bluetooth devices
             raw = backend.discover_devices()
             entries = [(f'{label} ({mac}) [Bluetooth]', mac) for mac, label in raw]
             self._device_map = {display: mac for display, mac in entries}
@@ -338,7 +338,7 @@ class QuickSyncGUI(QMainWindow):
                         self.device.blockSignals(False)
                         return
 
-            # Gigaset-Gerät bevorzugen
+            # Prefer Gigaset devices
             for display, mac in entries:
                 if 'gigaset' in display.lower():
                     self.device.setCurrentText(display)
@@ -501,20 +501,20 @@ class QuickSyncGUI(QMainWindow):
         # 1. Nutze das Attribut der GUI, falls gesetzt, andernfalls direkt das Backend-Standard-Log
         log_path = getattr(self, '_log_file', None) or backend.DEFAULT_LOG_FILE
         
-        # 2. Pfad absolut auflösen (Tilde expandieren)
+        # 2. Resolve the path absolutely and expand the tilde
         path_target = os.path.abspath(os.path.expanduser(log_path))
         
-        # 3. Den Ordner ermitteln (egal ob Datei oder Ordner übergeben wurde)
+        # 3. Determine the folder, regardless of whether a file or folder was passed
         initial_dir = path_target if os.path.isdir(path_target) else os.path.dirname(path_target)
 
-        # Sicherheitsnetz: Falls die App frisch installiert ist und der Ordner noch fehlt
+        # Safety net for fresh installs where the folder does not exist yet
         if not os.path.exists(initial_dir):
             try:
                 os.makedirs(initial_dir, exist_ok=True)
             except Exception:
                 initial_dir = os.path.expanduser('~')
 
-        # Dialog im richtigen Verzeichnis öffnen
+        # Open the dialog in the correct directory
         path, _ = QFileDialog.getOpenFileName(
             self, self.tr('Choose log file'), initial_dir, self.tr('Log files (*.log);;All files (*)')
         )
@@ -732,7 +732,7 @@ class QuickSyncGUI(QMainWindow):
         self._set_connection_state(False)
         self._update_status_bar(self.tr('No device connected'), '#d9534f')
 
-# ─── Zusätzliche Fenster-Klassen ──────────────────────────────────────────────
+# ─── Additional window classes ────────────────────────────────────────────────
 
 class _FileManagerSignals(QObject):
     setup_ui     = Signal(list, str)
@@ -742,7 +742,7 @@ class _FileManagerSignals(QObject):
     show_preview_err = Signal(str)  # error text
 
 class FileManagerWindow(QDialog):
-    """Dateimanager im KDE/Dolphin-Look mit fixiertem Gigaset-Parser."""
+    """File manager with a KDE/Dolphin-style layout and fixed Gigaset parser."""
 
     IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.gif'}
 
@@ -787,7 +787,7 @@ class FileManagerWindow(QDialog):
         toolbar.addStretch()
         layout.addLayout(toolbar)
 
-        # Trennlinie unter Toolbar
+        # Separator below toolbar
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setFrameShadow(QFrame.Plain)
@@ -797,7 +797,7 @@ class FileManagerWindow(QDialog):
         main_hbox = QHBoxLayout()
         main_hbox.setSpacing(6)
 
-        # Links: Orte/Ordner-Sidebar (KDE-Style)
+        # Left: places/folders sidebar (KDE style)
         from PySide6.QtWidgets import QListWidget, QListWidgetItem
         self.folder_sidebar = QListWidget()
         self.folder_sidebar.setFixedWidth(180)
@@ -805,7 +805,7 @@ class FileManagerWindow(QDialog):
         self.folder_sidebar.itemClicked.connect(self._on_sidebar_folder_changed)
         main_hbox.addWidget(self.folder_sidebar)
 
-        # Vertikale Trennlinie
+        # Vertical separator
         v_sep1 = QFrame()
         v_sep1.setFrameShape(QFrame.VLine)
         v_sep1.setFrameShadow(QFrame.Plain)
@@ -828,7 +828,7 @@ class FileManagerWindow(QDialog):
         self.table.itemSelectionChanged.connect(self._on_selection)
         main_hbox.addWidget(self.table, stretch=2)
 
-        # Vertikale Trennlinie
+        # Vertical separator
         v_sep2 = QFrame()
         v_sep2.setFrameShape(QFrame.VLine)
         v_sep2.setFrameShadow(QFrame.Plain)
@@ -863,7 +863,7 @@ class FileManagerWindow(QDialog):
 
         layout.addLayout(main_hbox, stretch=1)
 
-        # Trennlinie über Statusbar
+        # Separator above status bar
         sep_bottom = QFrame()
         sep_bottom.setFrameShape(QFrame.HLine)
         sep_bottom.setFrameShadow(QFrame.Plain)
@@ -942,10 +942,10 @@ class FileManagerWindow(QDialog):
         files = []
         current_folder = '/'
         
-        # Ersetze hartnäckige geschützte Leerzeichen (NBSP) durch reguläre Spaces
+        # Replace stubborn non-breaking spaces (NBSP) with regular spaces
         clean_text = text.replace('\xa0', ' ')
         
-        # Super-robuste Regex, die auf IDs, Datums-Formate und Dateigrößen-Endungen matcht
+        # Robust regex matching IDs, date formats, and file-size suffixes
         line_re = _re.compile(r'^(\d+):\s+(.+?)\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+[A-Z]\s+([\d\.]+\s+\w+)')
 
         for line in clean_text.splitlines():
@@ -953,7 +953,7 @@ class FileManagerWindow(QDialog):
             if not stripped:
                 continue
             
-            # Ordner-Wechsel erkennen (z.B. === /Pictures)
+            # Detect folder changes, e.g. === /Pictures
             if stripped.startswith('==='):
                 current_folder = stripped.replace('===', '').strip()
                 continue

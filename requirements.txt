@@ -1,6 +1,5 @@
-# Python dependencies for QuickSync4Linux
+# Required dependencies for the QuickSync4Linux CLI
 pyserial>=3.5
 
-# Optional: GUI support (PySide6)
-# Install via: pip install .[gui]
-# or manually: pip install PySide6
+# Optional GUI dependency:
+#   pip install .[gui]
