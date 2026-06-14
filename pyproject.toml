@@ -16,6 +16,11 @@ dependencies = [
 	"pyserial",
 ]
 
+[project.optional-dependencies]
+gui = [
+	"PySide6",
+]
+
 [project.urls]
 Homepage = "https://github.com/schorschii/QuickSync4Linux"
 Issues = "https://github.com/schorschii/QuickSync4Linux/issues"

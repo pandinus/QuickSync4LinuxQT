@@ -345,6 +345,42 @@
         <source>{} file(s) in "{}"</source>
         <translation>{} Datei(en) in „{}"</translation>
     </message>
+    <message>
+        <source>Serial</source>
+        <translation>Seriell</translation>
+    </message>
+    <message>
+        <source>Log file: {} (max. 1 MB, 3 backups)</source>
+        <translation>Log-Datei: {} (max. 1 MB, 3 Backups)</translation>
+    </message>
+    <message>
+        <source>Could not open log file</source>
+        <translation>Log-Datei konnte nicht geöffnet werden</translation>
+    </message>
+    <message>
+        <source>Disconnected from</source>
+        <translation>Verbindung getrennt zu</translation>
+    </message>
+    <message>
+        <source>Remote file</source>
+        <translation>Remote-Datei</translation>
+    </message>
+    <message>
+        <source>Enter remote file name:</source>
+        <translation>Remote-Dateiname eingeben:</translation>
+    </message>
+    <message>
+        <source>Remote name</source>
+        <translation>Remote-Name</translation>
+    </message>
+    <message>
+        <source>Remote file name on the device:</source>
+        <translation>Remote-Dateiname auf dem Gerät:</translation>
+    </message>
+    <message>
+        <source>Remote file name to delete:</source>
+        <translation>Remote-Dateiname zum Löschen:</translation>
+    </message>
 </context>
 
 <context>
@@ -478,8 +514,12 @@
 <context>
     <name>ContactsWindow</name>
     <message>
-        <source>Reload</source>
-        <translation>Neu laden</translation>
+        <source>loading…</source>
+        <translation>wird geladen…</translation>
+    </message>
+    <message>
+        <source>Reload already in progress — please wait.</source>
+        <translation>Neu laden läuft bereits — bitte warten.</translation>
     </message>
     <message>
         <source>There are unsaved changes. Reload anyway?</source>
@@ -588,6 +628,46 @@
     <message>
         <source>Please connect to a device first.</source>
         <translation>Bitte zuerst eine Verbindung herstellen.</translation>
+    </message>
+</context>
+
+<context>
+    <name>ContactEditor</name>
+    <message>
+        <source>Edit Contact</source>
+        <translation>Kontakt bearbeiten</translation>
+    </message>
+    <message>
+        <source>New Contact</source>
+        <translation>Neuer Kontakt</translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation>Vorname</translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation>Nachname</translation>
+    </message>
+    <message>
+        <source>Mobile</source>
+        <translation>Mobil</translation>
+    </message>
+    <message>
+        <source>Phone</source>
+        <translation>Telefon</translation>
+    </message>
+    <message>
+        <source>E-Mail</source>
+        <translation>E-Mail</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
     </message>
 </context>
 </TS>

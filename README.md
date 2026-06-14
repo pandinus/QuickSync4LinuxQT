@@ -21,6 +21,12 @@ sudo usermod -aG dialout <username>
 pip install -r requirements.txt
 ```
 
+For GUI support, install the optional `gui` extra (PySide6) instead:
+
+```bash
+pip install .[gui]
+```
+
 ### 3. System Dependencies
 
 - `bluez` / `bluez-utils` (provides `bluetoothctl` for automatic Bluetooth device discovery)

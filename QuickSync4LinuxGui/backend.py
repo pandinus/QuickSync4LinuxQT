@@ -4,7 +4,7 @@ Shared logic and CLI communication.
 """
 import os
 import re
-import json
+import configparser
 import subprocess
 import logging
 from logging.handlers import RotatingFileHandler
@@ -19,7 +19,10 @@ BT_MAC_RE = re.compile(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$')
 
 _CONFIG_DIR = os.path.expanduser('~/.config/QuickSync4LinuxGui')
 DEFAULT_LOG_FILE = os.path.join(_CONFIG_DIR, 'QuickSync4LinuxGui.log')
-DEFAULT_CONFIG_FILE = os.path.join(_CONFIG_DIR, 'settings.json')
+# Shared config file used by the CLI (QuickSync4Linux) — keep the
+# existing name/location/format (INI, [general] section) so both
+# GUI and CLI read/write the same settings.
+DEFAULT_CONFIG_FILE = os.path.expanduser('~/.config/quicksync4linuxgui.ini')
 
 # ─── Logger initialisieren ────────────────────────────────────────────────────
 import datetime as _dt
@@ -60,30 +63,35 @@ if not os.path.exists(_sentinel):
         except: pass
     _atexit.register(_log_exit)
 
-# ─── JSON-Einstellungen laden/speichern ───────────────────────────────────────
+# ─── Einstellungen laden/speichern (geteilte quicksync4linuxgui.ini) ──────────
 def load_settings(path=DEFAULT_CONFIG_FILE):
     try:
-        with open(path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        config_parser = configparser.ConfigParser()
+        config_parser.read(path)
+        if not config_parser.has_section('general'):
+            return
+        data = dict(config_parser.items('general'))
         global CHECK_TIMEOUT, DISCOVER_TIMEOUT, CLI_DEFAULT_TIMEOUT, DEFAULT_BAUD
-        if 'CHECK_TIMEOUT'       in data: CHECK_TIMEOUT       = int(data['CHECK_TIMEOUT'])
-        if 'DISCOVER_TIMEOUT'    in data: DISCOVER_TIMEOUT    = int(data['DISCOVER_TIMEOUT'])
-        if 'CLI_DEFAULT_TIMEOUT' in data: CLI_DEFAULT_TIMEOUT = int(data['CLI_DEFAULT_TIMEOUT'])
-        if 'DEFAULT_BAUD'        in data: DEFAULT_BAUD        = str(data['DEFAULT_BAUD'])
+        if 'check_timeout'       in data: CHECK_TIMEOUT       = int(data['check_timeout'])
+        if 'discover_timeout'    in data: DISCOVER_TIMEOUT    = int(data['discover_timeout'])
+        if 'cli_default_timeout' in data: CLI_DEFAULT_TIMEOUT = int(data['cli_default_timeout'])
+        if 'baud'                in data: DEFAULT_BAUD        = str(data['baud'])
     except Exception:
         pass
 
 def save_settings(path=DEFAULT_CONFIG_FILE):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        data = {
-            'CHECK_TIMEOUT':      CHECK_TIMEOUT,
-            'DISCOVER_TIMEOUT':   DISCOVER_TIMEOUT,
-            'CLI_DEFAULT_TIMEOUT': CLI_DEFAULT_TIMEOUT,
-            'DEFAULT_BAUD':       DEFAULT_BAUD,
-        }
+        config_parser = configparser.ConfigParser()
+        config_parser.read(path)  # bestehende Keys (z.B. "device") erhalten
+        if not config_parser.has_section('general'):
+            config_parser.add_section('general')
+        config_parser.set('general', 'check_timeout',       str(CHECK_TIMEOUT))
+        config_parser.set('general', 'discover_timeout',    str(DISCOVER_TIMEOUT))
+        config_parser.set('general', 'cli_default_timeout', str(CLI_DEFAULT_TIMEOUT))
+        config_parser.set('general', 'baud',                str(DEFAULT_BAUD))
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+            config_parser.write(f)
     except Exception:
         pass
 

@@ -176,7 +176,7 @@ class QuickSyncGUI(QMainWindow):
         conn_type_row = QHBoxLayout()
         self._conn_type_group = QButtonGroup(self)
         self._rb_bt = QRadioButton('Bluetooth')
-        self._rb_serial = QRadioButton('Seriell')
+        self._rb_serial = QRadioButton(self.tr('Serial'))
         self._rb_bt.setChecked(True)
         self._conn_type_group.addButton(self._rb_bt)
         self._conn_type_group.addButton(self._rb_serial)
@@ -402,7 +402,7 @@ class QuickSyncGUI(QMainWindow):
 
     
     def set_log_file(self, path: str | None = None):
-        self._append_output(f'Log-Datei: {backend.DEFAULT_LOG_FILE} (max. 1 MB, 3 Backups)')
+        self._append_output(self.tr('Log file: {} (max. 1 MB, 3 backups)').format(backend.DEFAULT_LOG_FILE))
 
     def _update_status_bar(self, text: str, colour: str):
         self._status_dot.setStyleSheet(f'color: {colour};')
@@ -485,14 +485,14 @@ class QuickSyncGUI(QMainWindow):
     def choose_file_and_run(self, action):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getOpenFileName(self, 'VCF-Datei wählen', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
+        path, _ = QFileDialog.getOpenFileName(self, self.tr('Choose VCF file'), os.path.expanduser('~'), self.tr('VCF files (*.vcf);;All files (*)'))
         if path:
             self.run_action(action, None, path)
 
     def get_contacts(self):
         if not self.check_connection_or_warn():
             return
-        path, _ = QFileDialog.getSaveFileName(self, 'Kontakte speichern als', os.path.expanduser('~'), 'VCF-Dateien (*.vcf);;Alle Dateien (*)')
+        path, _ = QFileDialog.getSaveFileName(self, self.tr('Save contacts as'), os.path.expanduser('~'), self.tr('VCF files (*.vcf);;All files (*)'))
         if path:
             self.run_action('getcontacts', None, path)
 
@@ -516,7 +516,7 @@ class QuickSyncGUI(QMainWindow):
 
         # Dialog im richtigen Verzeichnis öffnen
         path, _ = QFileDialog.getOpenFileName(
-            self, 'Log-Datei wählen', initial_dir, 'Log-Dateien (*.log);;Alle Dateien (*)'
+            self, self.tr('Choose log file'), initial_dir, self.tr('Log files (*.log);;All files (*)')
         )
         
         if not path:
@@ -524,7 +524,7 @@ class QuickSyncGUI(QMainWindow):
         try:
             subprocess.Popen(['xdg-open', path])
         except Exception as e:
-            self._append_output(f'✗ Log-Datei konnte nicht geöffnet werden: {e}')
+            self._append_output(f'✗ {self.tr("Could not open log file")}: {e}')
 
     def open_settings_timeouts(self):
         dlg = QDialog(self)
@@ -622,20 +622,20 @@ class QuickSyncGUI(QMainWindow):
 
 
     def download_file(self):
-        remote = simple_input(self, 'Remote file', 'Remote-Dateiname eingeben:')
+        remote = simple_input(self, self.tr('Remote file'), self.tr('Enter remote file name:'))
         if not remote: return
-        out, _ = QFileDialog.getSaveFileName(self, 'Speichern als')
+        out, _ = QFileDialog.getSaveFileName(self, self.tr('Save as'))
         if out: self.run_action('download', remote, out)
 
     def upload_file(self):
-        path, _ = QFileDialog.getOpenFileName(self,  'Datei zum Hochladen wählen')
+        path, _ = QFileDialog.getOpenFileName(self, self.tr('Choose file to upload'))
         if not path: return
-        remote = simple_input(self, 'Remote-Name', 'Remote-Dateiname auf dem Gerät:')
+        remote = simple_input(self, self.tr('Remote name'), self.tr('Remote file name on the device:'))
         if not remote: return
         self.run_action('upload', remote, path)
 
     def delete_file(self):
-        remote = simple_input(self, 'Remote file', 'Remote-Dateiname zum Löschen:')
+        remote = simple_input(self, self.tr('Remote file'), self.tr('Remote file name to delete:'))
         if remote: self.run_action('delete', remote)
 
     def check_device_connection(self):
@@ -681,7 +681,7 @@ class QuickSyncGUI(QMainWindow):
 
     def test_connection(self):
         self.output.clear()
-        self._append_output('--- Verbindung wird hergestellt ---')
+        self._append_output(self.tr('--- Establishing connection ---'))
         label = self.current_device_label()
         self._update_status_bar(f'{label}: {self.tr("--- Establishing connection ---")}' if label else self.tr('--- Establishing connection ---'), '#888888')
         sig = self._signals
@@ -728,7 +728,7 @@ class QuickSyncGUI(QMainWindow):
             try: subprocess.run(['bluetoothctl', 'disconnect', dev.split('@')[0]], capture_output=True, timeout=5)
             except Exception: pass
         self.output.clear()
-        self._append_output(f'✓ Verbindung zu {label} getrennt')
+        self._append_output(f'✓ {self.tr("Disconnected from")} {label}')
         self._set_connection_state(False)
         self._update_status_bar(self.tr('No device connected'), '#d9534f')
 
@@ -1192,7 +1192,7 @@ class ContactsWindow(QDialog):
         self.show()
         
         # Sofortiger visueller Indikator im Hauptfenster
-        self.parent_win.ui_kontakt_anzahl.setText("wird geladen...")
+        self.parent_win.ui_kontakt_anzahl.setText(self.tr("loading…"))
         QTimer.singleShot(50, self.reload)
 
     def _refresh_status(self):
@@ -1205,7 +1205,7 @@ class ContactsWindow(QDialog):
 
     def reload(self):
         if self._reload_thread and self._reload_thread.is_alive():
-            self.parent_win._signals.append_text.emit('⚠ Reload läuft bereits — bitte warten.')
+            self.parent_win._signals.append_text.emit(f'⚠ {self.tr("Reload already in progress — please wait.")}')
             return
         self.parent_win.output.clear()
         self.status_label.setText(self.tr('Loading contacts …'))
@@ -1337,7 +1337,7 @@ class ContactsWindow(QDialog):
 class ContactEditor(QDialog):
     def __init__(self, parent, card, on_save):
         super().__init__(parent)
-        self.setWindowTitle('Kontakt bearbeiten' if card.get('luid') else 'Neuer Kontakt')
+        self.setWindowTitle(self.tr('Edit Contact') if card.get('luid') else self.tr('New Contact'))
         self.resize(400, 450)
         self.card = card
         self.on_save = on_save
@@ -1351,11 +1351,11 @@ class ContactEditor(QDialog):
         self.entries['home'] = QLineEdit(card.get('tels', {}).get('HOME', ''))
         self.entries['email'] = QLineEdit(card.get('emails', {}).get('HOME', ''))
         
-        form.addRow('Vorname:', self.entries['first_name'])
-        form.addRow('Nachname:', self.entries['last_name'])
+        form.addRow(self.tr('First name') + ':', self.entries['first_name'])
+        form.addRow(self.tr('Last name') + ':', self.entries['last_name'])
         form.addRow(self.tr('Mobile') + ':', self.entries['cell'])
-        form.addRow('Telefon:', self.entries['home'])
-        form.addRow('E-Mail:', self.entries['email'])
+        form.addRow(self.tr('Phone') + ':', self.entries['home'])
+        form.addRow(self.tr('E-Mail') + ':', self.entries['email'])
         layout.addLayout(form)
         
         btns = _make_dialog_buttons(self)
@@ -1383,22 +1383,17 @@ def run():
     import sys
     app = QApplication.instance() or QApplication(sys.argv)
 
-    # Load translation: use saved language setting, fall back to system locale
-    from PySide6.QtCore import QTranslator, QLocale, QSettings
+    # Load translation: English is the default. A translator is only
+    # installed if the user explicitly selected a different language
+    # via the Language settings dialog.
+    from PySide6.QtCore import QTranslator, QSettings
     _s = QSettings('QuickSync4LinuxGui', 'QuickSync4LinuxGui')
     saved_lang = _s.value('language', '')
-    translator = QTranslator(app)
-    lang_dir = os.path.join(os.path.dirname(__file__), 'lang')
     if saved_lang and saved_lang != 'en':
-        # Explizit gewählte Sprache laden
-        translator.load(saved_lang, lang_dir)
-        app.installTranslator(translator)
-    elif not saved_lang:
-        # Systemsprache verwenden
-        locale = QLocale.system().name()  # e.g. 'de_DE'
-        if translator.load(locale, lang_dir):
+        translator = QTranslator(app)
+        lang_dir = os.path.join(os.path.dirname(__file__), 'lang')
+        if translator.load(saved_lang, lang_dir):
             app.installTranslator(translator)
-    # saved_lang == 'en': kein Translator → Englisch als Fallback
     win = QuickSyncGUI()
     win.show()
     app.exec()

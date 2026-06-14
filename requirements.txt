@@ -2,5 +2,5 @@
 pyserial>=3.5
 
 # Optional: GUI support (PySide6)
-# Install with: pip install PySide6
-# PySide6>=6.0.0
+# Install via: pip install .[gui]
+# or manually: pip install PySide6
